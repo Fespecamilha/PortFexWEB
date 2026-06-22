@@ -31,7 +31,7 @@ JWT_EXPIRE_H = 24 * 7  # 7 dias
 KIWIFY_SECRET = os.environ.get('KIWIFY_SECRET', '')
 APP_URL        = os.environ.get('APP_URL', 'http://localhost:5000')
 
-PLANO_GRATIS_LIMITE = 5
+PLANO_GRATIS_LIMITE = 2
 PRECO_MENSAL        = 29.90
 PRECO_ANUAL         = 199.00
 
