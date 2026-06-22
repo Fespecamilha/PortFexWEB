@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#080c14">
+<title>Planos — Portfex</title>
+<link rel="icon" href="/static/icons/icon-192.png">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{--bg:#080c14;--bg2:#0d1120;--gold:#c9a84c;--gold2:#e8c96a;--white:#f0ece4;--gray:#9a9690;--gray2:#5a5650;--green:#3dba7e;--border:rgba(255,255,255,0.07);--border2:rgba(201,168,76,0.2);}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--white);min-height:100svh;padding:2rem 1.25rem 4rem;}
+.logo{font-family:'Syne',sans-serif;font-weight:800;font-size:1.4rem;background:linear-gradient(135deg,var(--gold),var(--gold2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;text-align:center;margin-bottom:2rem;}
+h1{font-family:'Syne',sans-serif;font-weight:800;font-size:clamp(1.9rem,6vw,2.8rem);text-align:center;margin-bottom:.6rem;letter-spacing:-.02em;}
+.sub{text-align:center;color:var(--gray);font-size:.92rem;margin-bottom:2.5rem;}
+.plans{display:flex;flex-direction:column;gap:1rem;max-width:580px;margin:0 auto;}
+.plan{background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:1.5rem;position:relative;}
+.plan.featured{border-color:var(--border2);background:rgba(201,168,76,.04);}
+.plan-badge{position:absolute;top:-11px;right:1.25rem;background:linear-gradient(135deg,var(--gold),var(--gold2));color:#080c14;font-size:.62rem;font-weight:700;padding:.2rem .7rem;border-radius:20px;}
+.plan-name{font-size:.7rem;color:var(--gray);font-weight:600;letter-spacing:.1em;text-transform:uppercase;margin-bottom:.5rem;}
+.plan-price{font-family:'Syne',sans-serif;font-weight:800;font-size:2.4rem;line-height:1;margin-bottom:.15rem;}
+.plan-price sup{font-size:1rem;vertical-align:top;margin-top:.35rem;color:var(--gold);}
+.plan-period{font-size:.8rem;color:var(--gray);margin-bottom:1.2rem;}
+.plan-features{list-style:none;display:flex;flex-direction:column;gap:.5rem;margin-bottom:1.4rem;}
+.plan-features li{font-size:.84rem;display:flex;align-items:center;gap:.5rem;}
+.plan-features li::before{content:'✓';color:var(--green);font-weight:700;flex-shrink:0;}
+.plan-features li.no{color:var(--gray2);}
+.plan-features li.no::before{content:'—';color:var(--gray2);}
+.btn-gold{display:block;text-align:center;padding:.82rem;border-radius:9px;border:none;background:linear-gradient(135deg,var(--gold),var(--gold2));color:#080c14;font-family:'Inter',sans-serif;font-size:.9rem;font-weight:700;text-decoration:none;cursor:pointer;transition:opacity .15s;}
+.btn-gold:hover{opacity:.9;}
+.btn-outline{display:block;text-align:center;padding:.82rem;border-radius:9px;border:1px solid var(--border);background:transparent;color:var(--gray);font-family:'Inter',sans-serif;font-size:.9rem;text-decoration:none;cursor:pointer;}
+.btn-outline:hover{color:var(--white);}
+.annual-box{max-width:580px;margin:1rem auto 0;padding:1.1rem 1.25rem;background:rgba(201,168,76,.05);border:1px solid var(--border2);border-radius:14px;display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;}
+.annual-box-txt{font-size:.82rem;color:var(--gray);}
+.annual-box-txt strong{color:var(--gold);}
+.back{display:block;text-align:center;font-size:.8rem;color:var(--gray2);text-decoration:none;margin-top:2rem;}
+@media(min-width:560px){.plans{flex-direction:row;}.plan{flex:1;}}
+</style>
+</head>
+<body>
+<a href="/" style="text-decoration:none"><div class="logo">Portfex</div></a>
+<h1>Escolha seu plano</h1>
+<p class="sub">Comece grátis. Sem cartão de crédito.</p>
+
+<div class="plans">
+  <div class="plan">
+    <div class="plan-name">Gratuito</div>
+    <div class="plan-price">R$<span style="font-size:2.4rem">0</span></div>
+    <div class="plan-period">para sempre</div>
+    <ul class="plan-features">
+      <li>Até 5 ativos</li>
+      <li>Dashboard e cotações</li>
+      <li class="no">Preço Justo FCD</li>
+      <li class="no">Proventos automáticos</li>
+      <li class="no">Declaração de IR</li>
+    </ul>
+    <a href="/cadastro" class="btn-outline">Criar conta grátis</a>
+  </div>
+
+  <div class="plan featured">
+    <div class="plan-badge">Mais popular</div>
+    <div class="plan-name">Pro Mensal</div>
+    <div class="plan-price"><sup>R$</sup>{{ preco_mensal|int }}<span style="font-size:1rem">,90</span></div>
+    <div class="plan-period">por mês · cancele quando quiser</div>
+    <ul class="plan-features">
+      <li>Ativos ilimitados</li>
+      <li>Dashboard completo</li>
+      <li>Preço Justo — FCD + Graham + EV/EBITDA</li>
+      <li>Proventos automáticos</li>
+      <li>Declaração de IR + PDF</li>
+      <li>Importar nota Rico</li>
+    </ul>
+    <a href="https://pay.kiwify.com.br/portfex-mensal" class="btn-gold" target="_blank">Assinar R${{ preco_mensal|int }},90/mês</a>
+  </div>
+</div>
+
+<div class="annual-box">
+  <div class="annual-box-txt">
+    <strong>⭐ Plano Anual — Economize 44%</strong><br>
+    R${{ preco_anual|int }},00/ano · equivale a <strong>R$16,58/mês</strong>
+  </div>
+  <a href="https://pay.kiwify.com.br/portfex-anual" class="btn-gold" style="padding:.6rem 1.2rem;font-size:.84rem;white-space:nowrap" target="_blank">Assinar anual</a>
+</div>
+
+<a href="/app" class="back">← Voltar ao app</a>
+
+<script>
+// Se vier com ?ativado=1 após pagamento Kiwify
+const qs = new URLSearchParams(location.search);
+if(qs.get('ativado')==='1'){
+  alert('🎉 Pagamento confirmado! Seu plano Pro já está ativo.');
+  window.location.href = '/app?ativado=1';
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#080c14">
+<meta name="description" content="Controle sua carteira de investimentos com análise de preço justo, IR automático e proventos — tudo no celular.">
+<title>Portfex — Gestão de Investimentos</title>
+<link rel="manifest" href="/static/manifest.json">
+<link rel="icon" href="/static/icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ── Reset & Base ─────────────────────────────────────── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#080c14;
+  --bg2:#0d1120;
+  --bg3:#131827;
+  --gold:#c9a84c;
+  --gold2:#e8c96a;
+  --white:#f0ece4;
+  --gray:#9a9690;
+  --gray2:#5a5650;
+  --green:#3dba7e;
+  --red:#e05c5c;
+  --border:rgba(255,255,255,0.07);
+  --border2:rgba(201,168,76,0.2);
+}
+html{scroll-behavior:smooth;}
+body{
+  font-family:'Inter',sans-serif;
+  background:var(--bg);
+  color:var(--white);
+  min-height:100vh;
+  overflow-x:hidden;
+}
+
+/* ── Typography ───────────────────────────────────────── */
+.display{font-family:'Syne',sans-serif;font-weight:800;line-height:1.05;letter-spacing:-0.02em;}
+.label{font-size:.65rem;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--gold);}
+
+/* ── Ticker Tape ──────────────────────────────────────── */
+.tape-wrap{
+  overflow:hidden;
+  border-top:1px solid var(--border);
+  border-bottom:1px solid var(--border);
+  background:rgba(201,168,76,0.04);
+  padding:.45rem 0;
+  white-space:nowrap;
+}
+.tape-track{
+  display:inline-block;
+  animation:tape 28s linear infinite;
+}
+.tape-track span{
+  display:inline-block;
+  margin:0 1.5rem;
+  font-size:.72rem;
+  font-family:'Inter',sans-serif;
+  font-weight:500;
+  color:var(--gray);
+}
+.tape-track span b{font-weight:600;color:var(--white);}
+.tape-track span.up b{color:var(--green);}
+.tape-track span.dn b{color:var(--red);}
+@keyframes tape{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+
+/* ── Nav ──────────────────────────────────────────────── */
+nav{
+  position:fixed;top:0;left:0;right:0;z-index:100;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:.85rem 1.5rem;
+  background:rgba(8,12,20,.85);
+  backdrop-filter:blur(16px);
+  border-bottom:1px solid var(--border);
+}
+.nav-logo{
+  font-family:'Syne',sans-serif;font-weight:800;font-size:1.3rem;
+  background:linear-gradient(135deg,var(--gold),var(--gold2));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  background-clip:text;
+}
+.nav-links{display:flex;gap:.6rem;align-items:center;}
+.btn-ghost{
+  padding:.45rem 1rem;border-radius:7px;border:1px solid var(--border);
+  background:transparent;color:var(--gray);cursor:pointer;
+  font-family:'Inter',sans-serif;font-size:.82rem;text-decoration:none;
+  transition:color .15s,border-color .15s;
+}
+.btn-ghost:hover{color:var(--white);border-color:var(--border2);}
+.btn-gold{
+  padding:.45rem 1.1rem;border-radius:7px;border:none;
+  background:linear-gradient(135deg,var(--gold),var(--gold2));
+  color:#080c14;cursor:pointer;font-family:'Inter',sans-serif;
+  font-size:.82rem;font-weight:700;text-decoration:none;
+  transition:opacity .15s,transform .15s;
+}
+.btn-gold:hover{opacity:.9;transform:translateY(-1px);}
+
+/* ── Hero ─────────────────────────────────────────────── */
+.hero{
+  min-height:100svh;
+  display:flex;flex-direction:column;
+  justify-content:center;
+  padding:7rem 1.5rem 4rem;
+  position:relative;
+  overflow:hidden;
+}
+/* Radial glow de fundo */
+.hero::before{
+  content:'';position:absolute;
+  top:-10%;left:-20%;width:70%;height:70%;
+  background:radial-gradient(ellipse,rgba(201,168,76,.08) 0%,transparent 70%);
+  pointer-events:none;
+}
+.hero-eyebrow{
+  display:inline-flex;align-items:center;gap:.5rem;
+  padding:.3rem .8rem;border-radius:20px;
+  background:rgba(201,168,76,.1);border:1px solid var(--border2);
+  font-size:.72rem;font-weight:600;color:var(--gold);
+  margin-bottom:1.5rem;width:fit-content;
+}
+.hero-eyebrow::before{content:'●';font-size:.5rem;animation:pulse 2s ease-in-out infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+.hero h1{
+  font-family:'Syne',sans-serif;font-weight:800;
+  font-size:clamp(2.4rem,9vw,4.5rem);
+  line-height:1.0;letter-spacing:-0.03em;
+  margin-bottom:1.25rem;
+}
+.hero h1 em{
+  font-style:normal;
+  -webkit-text-fill-color:transparent;
+  background:linear-gradient(135deg,var(--gold),var(--gold2));
+  -webkit-background-clip:text;background-clip:text;
+}
+.hero-sub{
+  font-size:1rem;color:var(--gray);line-height:1.7;
+  max-width:480px;margin-bottom:2.5rem;font-weight:400;
+}
+.hero-cta{display:flex;gap:.75rem;flex-wrap:wrap;}
+.btn-primary{
+  display:inline-flex;align-items:center;gap:.5rem;
+  padding:.85rem 1.8rem;border-radius:10px;border:none;
+  background:linear-gradient(135deg,var(--gold),var(--gold2));
+  color:#080c14;cursor:pointer;font-family:'Inter',sans-serif;
+  font-size:.95rem;font-weight:700;text-decoration:none;
+  transition:transform .2s,box-shadow .2s;
+}
+.btn-primary:hover{transform:translateY(-2px);box-shadow:0 8px 28px rgba(201,168,76,.28);}
+.btn-secondary{
+  display:inline-flex;align-items:center;
+  padding:.85rem 1.5rem;border-radius:10px;
+  border:1px solid var(--border);background:transparent;
+  color:var(--gray);cursor:pointer;font-family:'Inter',sans-serif;
+  font-size:.9rem;text-decoration:none;transition:color .15s,border-color .15s;
+}
+.btn-secondary:hover{color:var(--white);border-color:rgba(255,255,255,.2);}
+.hero-note{font-size:.72rem;color:var(--gray2);margin-top:.9rem;}
+
+/* ── Mock App Card ────────────────────────────────────── */
+.mock-card{
+  margin:2.5rem 0 0;
+  background:var(--bg2);
+  border:1px solid var(--border);
+  border-radius:16px;
+  overflow:hidden;
+  max-width:380px;
+}
+.mock-header{
+  background:var(--bg3);
+  padding:.75rem 1rem;
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;
+}
+.mock-title{font-size:.72rem;font-weight:600;color:var(--gray);}
+.mock-live{display:flex;align-items:center;gap:.35rem;font-size:.65rem;color:var(--green);}
+.mock-live::before{content:'●';font-size:.5rem;animation:pulse 1.5s infinite;}
+.mock-body{padding:1rem;}
+.mock-total{
+  font-family:'Syne',sans-serif;font-weight:800;
+  font-size:2rem;color:var(--white);margin-bottom:.2rem;
+}
+.mock-gain{font-size:.8rem;color:var(--green);font-weight:500;margin-bottom:1rem;}
+.mock-bars{display:flex;flex-direction:column;gap:.5rem;}
+.mock-bar-row{display:flex;align-items:center;gap:.6rem;}
+.mock-bar-label{font-size:.68rem;color:var(--gray);width:70px;flex-shrink:0;}
+.mock-bar-track{flex:1;height:5px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden;}
+.mock-bar-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--gold),var(--gold2));}
+.mock-bar-val{font-size:.68rem;color:var(--gray);width:32px;text-align:right;flex-shrink:0;}
+.mock-divider{height:1px;background:var(--border);margin:1rem 0;}
+.mock-stocks{display:flex;flex-direction:column;gap:.55rem;}
+.mock-stock{display:flex;align-items:center;justify-content:space-between;}
+.mock-stock-name{font-size:.78rem;font-weight:600;}
+.mock-stock-change{font-size:.72rem;}
+
+/* ── Sections ─────────────────────────────────────────── */
+section{padding:5rem 1.5rem;max-width:600px;margin:0 auto;}
+.section-eyebrow{margin-bottom:.75rem;}
+.section-title{
+  font-family:'Syne',sans-serif;font-weight:800;
+  font-size:clamp(1.8rem,6vw,2.8rem);
+  line-height:1.1;letter-spacing:-0.02em;
+  margin-bottom:1rem;
+}
+.section-sub{font-size:.95rem;color:var(--gray);line-height:1.7;}
+
+/* ── Features ─────────────────────────────────────────── */
+.features{padding:4rem 1.5rem;background:var(--bg2);}
+.features-inner{max-width:600px;margin:0 auto;}
+.feat-list{display:flex;flex-direction:column;gap:0;margin-top:2.5rem;}
+.feat-item{
+  padding:1.25rem 0;
+  border-bottom:1px solid var(--border);
+  display:grid;grid-template-columns:2.5rem 1fr;gap:.75rem;align-items:start;
+}
+.feat-item:last-child{border-bottom:none;}
+.feat-icon{
+  width:2.5rem;height:2.5rem;border-radius:10px;
+  background:rgba(201,168,76,.1);border:1px solid var(--border2);
+  display:flex;align-items:center;justify-content:center;
+  font-size:1.1rem;flex-shrink:0;
+}
+.feat-name{font-size:.9rem;font-weight:600;margin-bottom:.25rem;}
+.feat-desc{font-size:.82rem;color:var(--gray);line-height:1.6;}
+
+/* ── Valuation showcase ───────────────────────────────── */
+.val-card{
+  background:var(--bg3);border:1px solid var(--border);
+  border-radius:14px;padding:1.25rem;margin-top:1.75rem;
+}
+.val-ticker{
+  font-family:'Syne',sans-serif;font-weight:800;font-size:1.5rem;margin-bottom:.2rem;
+}
+.val-methods{display:flex;flex-direction:column;gap:.6rem;margin:.75rem 0;}
+.val-method{display:flex;justify-content:space-between;align-items:center;}
+.val-method-name{font-size:.75rem;color:var(--gray);}
+.val-method-price{font-size:.85rem;font-weight:600;color:var(--gold);}
+.val-range{
+  padding:.6rem .8rem;background:rgba(61,186,126,.08);
+  border:1px solid rgba(61,186,126,.2);border-radius:8px;
+  display:flex;justify-content:space-between;align-items:center;
+}
+.val-range-label{font-size:.72rem;color:var(--green);}
+.val-range-val{font-size:.9rem;font-weight:700;color:var(--green);}
+.val-current{display:flex;justify-content:space-between;align-items:center;margin-top:.6rem;}
+.val-current-label{font-size:.72rem;color:var(--gray);}
+.val-current-val{display:flex;align-items:center;gap:.4rem;}
+.val-current-price{font-size:.85rem;color:var(--white);}
+.val-badge{
+  font-size:.65rem;font-weight:700;padding:.15rem .45rem;
+  border-radius:4px;background:rgba(61,186,126,.15);color:var(--green);
+}
+
+/* ── Pricing ──────────────────────────────────────────── */
+.pricing{padding:4rem 1.5rem;background:var(--bg2);}
+.pricing-inner{max-width:600px;margin:0 auto;}
+.plans{display:flex;flex-direction:column;gap:1rem;margin-top:2rem;}
+.plan{
+  background:var(--bg3);border:1px solid var(--border);
+  border-radius:14px;padding:1.5rem;position:relative;
+}
+.plan.featured{border-color:var(--border2);background:rgba(201,168,76,.04);}
+.plan-badge{
+  position:absolute;top:-10px;right:1.25rem;
+  background:linear-gradient(135deg,var(--gold),var(--gold2));
+  color:#080c14;font-size:.65rem;font-weight:700;
+  padding:.2rem .7rem;border-radius:20px;
+}
+.plan-name{font-size:.72rem;color:var(--gray);font-weight:600;letter-spacing:.1em;text-transform:uppercase;margin-bottom:.6rem;}
+.plan-price{
+  font-family:'Syne',sans-serif;font-weight:800;
+  font-size:2.2rem;line-height:1;margin-bottom:.2rem;
+}
+.plan-price sup{font-size:1rem;vertical-align:top;margin-top:.3rem;color:var(--gold);}
+.plan-price span{font-size:.9rem;font-weight:400;color:var(--gray);}
+.plan-desc{font-size:.78rem;color:var(--gray);margin-bottom:1.25rem;margin-top:.2rem;}
+.plan-features{list-style:none;display:flex;flex-direction:column;gap:.5rem;margin-bottom:1.25rem;}
+.plan-features li{
+  font-size:.82rem;color:var(--white);
+  display:flex;align-items:center;gap:.5rem;
+}
+.plan-features li::before{content:'✓';color:var(--green);font-weight:700;flex-shrink:0;}
+.plan-features li.muted{color:var(--gray2);}
+.plan-features li.muted::before{content:'—';color:var(--gray2);}
+.btn-plan-gold{
+  display:block;text-align:center;width:100%;
+  padding:.8rem;border-radius:9px;border:none;
+  background:linear-gradient(135deg,var(--gold),var(--gold2));
+  color:#080c14;font-family:'Inter',sans-serif;font-size:.9rem;font-weight:700;
+  text-decoration:none;cursor:pointer;transition:opacity .15s;
+}
+.btn-plan-gold:hover{opacity:.9;}
+.btn-plan-outline{
+  display:block;text-align:center;width:100%;
+  padding:.8rem;border-radius:9px;
+  border:1px solid var(--border);background:transparent;
+  color:var(--gray);font-family:'Inter',sans-serif;font-size:.9rem;
+  text-decoration:none;cursor:pointer;transition:color .15s;
+}
+.btn-plan-outline:hover{color:var(--white);}
+
+/* ── FAQ ──────────────────────────────────────────────── */
+.faq-item{border-bottom:1px solid var(--border);padding:1.1rem 0;}
+.faq-q{
+  font-size:.9rem;font-weight:500;cursor:pointer;
+  display:flex;justify-content:space-between;align-items:center;
+  gap:1rem;user-select:none;
+}
+.faq-q .icon{
+  width:1.5rem;height:1.5rem;flex-shrink:0;
+  border-radius:50%;border:1px solid var(--border);
+  display:flex;align-items:center;justify-content:center;
+  font-size:.85rem;transition:transform .2s,background .2s;
+}
+.faq-item.open .faq-q{color:var(--gold);}
+.faq-item.open .icon{background:rgba(201,168,76,.1);border-color:var(--border2);transform:rotate(45deg);}
+.faq-a{
+  display:none;font-size:.84rem;color:var(--gray);
+  line-height:1.75;padding:.75rem 0 .25rem;
+}
+.faq-item.open .faq-a{display:block;}
+
+/* ── Footer ───────────────────────────────────────────── */
+footer{
+  text-align:center;padding:2.5rem 1.5rem;
+  border-top:1px solid var(--border);
+  font-size:.78rem;color:var(--gray2);
+}
+footer a{color:var(--gray);text-decoration:none;}
+
+/* ── Scroll reveal ────────────────────────────────────── */
+.reveal{opacity:0;transform:translateY(24px);transition:opacity .6s ease,transform .6s ease;}
+.reveal.visible{opacity:1;transform:none;}
+
+@media(min-width:640px){
+  .plans{flex-direction:row;}
+  .plan{flex:1;}
+  .mock-card{margin-left:auto;margin-right:auto;}
+}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-logo">Portfex</div>
+  <div class="nav-links">
+    <a href="/login" class="btn-ghost">Entrar</a>
+    <a href="/cadastro" class="btn-gold">Começar grátis</a>
+  </div>
+</nav>
+
+<!-- TICKER TAPE -->
+<div style="margin-top:60px;">
+<div class="tape-wrap">
+  <div class="tape-track" id="tape"></div>
+</div>
+</div>
+
+<!-- HERO -->
+<section class="hero" style="padding-top:4rem">
+  <div class="hero-eyebrow">Controle total da sua carteira</div>
+
+  <h1 class="display">
+    Invista com<br>
+    <em>clareza.</em><br>
+    Não no escuro.
+  </h1>
+
+  <p class="hero-sub">
+    Acompanhe sua carteira em tempo real, descubra o preço justo de cada ação,
+    organize o IR e veja seus proventos futuros — tudo no celular.
+  </p>
+
+  <div class="hero-cta">
+    <a href="/cadastro" class="btn-primary">
+      Começar grátis
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </a>
+    <a href="#planos" class="btn-secondary">Ver planos</a>
+  </div>
+  <p class="hero-note">Grátis até 5 ativos · Sem cartão de crédito</p>
+
+  <!-- Mock App -->
+  <div class="mock-card reveal">
+    <div class="mock-header">
+      <span class="mock-title">Portfólio · Jun 2026</span>
+      <span class="mock-live">Ao vivo</span>
+    </div>
+    <div class="mock-body">
+      <div class="mock-total">R$ 48.320,00</div>
+      <div class="mock-gain">+R$ 6.840,00 · +16,5% no período</div>
+      <div class="mock-bars">
+        <div class="mock-bar-row">
+          <span class="mock-bar-label">Ações</span>
+          <div class="mock-bar-track"><div class="mock-bar-fill" style="width:70%"></div></div>
+          <span class="mock-bar-val">70%</span>
+        </div>
+        <div class="mock-bar-row">
+          <span class="mock-bar-label">FIIs</span>
+          <div class="mock-bar-track"><div class="mock-bar-fill" style="width:20%;opacity:.7"></div></div>
+          <span class="mock-bar-val">20%</span>
+        </div>
+        <div class="mock-bar-row">
+          <span class="mock-bar-label">Renda Fixa</span>
+          <div class="mock-bar-track"><div class="mock-bar-fill" style="width:10%;opacity:.5"></div></div>
+          <span class="mock-bar-val">10%</span>
+        </div>
+      </div>
+      <div class="mock-divider"></div>
+      <div class="mock-stocks">
+        <div class="mock-stock">
+          <span class="mock-stock-name">PETR4</span>
+          <span class="mock-stock-change" style="color:var(--green)">+2,3%</span>
+        </div>
+        <div class="mock-stock">
+          <span class="mock-stock-name">BBAS3</span>
+          <span class="mock-stock-change" style="color:var(--green)">+0,8%</span>
+        </div>
+        <div class="mock-stock">
+          <span class="mock-stock-name">MXRF11</span>
+          <span class="mock-stock-change" style="color:var(--red)">-0,4%</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<div class="features">
+  <div class="features-inner">
+    <div class="reveal">
+      <div class="label section-eyebrow">Funcionalidades</div>
+      <h2 class="section-title">Tudo que você precisa para investir melhor</h2>
+    </div>
+    <div class="feat-list">
+      <div class="feat-item reveal">
+        <div class="feat-icon">📊</div>
+        <div>
+          <div class="feat-name">Dashboard em tempo real</div>
+          <div class="feat-desc">Visão completa da carteira com gráficos por classe, setor, rentabilidade e radar de concentração. Cotações atualizadas automaticamente.</div>
+        </div>
+      </div>
+      <div class="feat-item reveal">
+        <div class="feat-icon">🔬</div>
+        <div>
+          <div class="feat-name">Preço Justo — 3 métodos</div>
+          <div class="feat-desc">FCD (Fluxo de Caixa Descontado), Graham Number e EV/EBITDA combinados. Veja uma faixa de preço justo para decidir com mais convicção.</div>
+        </div>
+      </div>
+      <div class="feat-item reveal">
+        <div class="feat-icon">💰</div>
+        <div>
+          <div class="feat-name">Proventos futuros automáticos</div>
+          <div class="feat-desc">Busca automaticamente dividendos, JCP e rendimentos anunciados para os ativos da sua carteira. Vê quanto vai receber e quando.</div>
+        </div>
+      </div>
+      <div class="feat-item reveal">
+        <div class="feat-icon">⚖️</div>
+        <div>
+          <div class="feat-name">Rebalanceamento inteligente</div>
+          <div class="feat-desc">Define o percentual ideal por classe e o app calcula exatamente quanto aportar em cada ativo para fechar o gap.</div>
+        </div>
+      </div>
+      <div class="feat-item reveal">
+        <div class="feat-icon">📋</div>
+        <div>
+          <div class="feat-name">Declaração de IR simplificada</div>
+          <div class="feat-desc">Importe notas de corretagem e o app calcula posição em 31/12, resultado de vendas e gera PDF pronto para o IRPF.</div>
+        </div>
+      </div>
+      <div class="feat-item reveal">
+        <div class="feat-icon">📱</div>
+        <div>
+          <div class="feat-name">Instala no celular como app</div>
+          <div class="feat-desc">PWA — funciona no iPhone e Android sem precisar de App Store. Adicione à tela de início e use como app nativo.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- VALUATION DEMO -->
+<section class="reveal">
+  <div class="label section-eyebrow">Análise & Valuation</div>
+  <h2 class="section-title">Descubra se a ação está cara ou barata</h2>
+  <p class="section-sub">
+    Não dependa de dica de influencer. O Portfex calcula o preço justo com três métodos
+    e mostra uma faixa de valor — você decide com dados.
+  </p>
+
+  <div class="val-card">
+    <div class="val-ticker">BBAS3</div>
+    <div style="font-size:.75rem;color:var(--gray)">Banco do Brasil · Setor Financeiro</div>
+    <div class="val-methods">
+      <div class="val-method">
+        <span class="val-method-name">FCD (Fluxo de Caixa Descontado)</span>
+        <span class="val-method-price">R$ 34,20</span>
+      </div>
+      <div class="val-method">
+        <span class="val-method-name">Graham Number</span>
+        <span class="val-method-price">R$ 28,50</span>
+      </div>
+      <div class="val-method">
+        <span class="val-method-name">EV/EBITDA (setor financeiro)</span>
+        <span class="val-method-price">R$ 31,80</span>
+      </div>
+    </div>
+    <div class="val-range">
+      <span class="val-range-label">Faixa de Preço Justo Estimado</span>
+      <span class="val-range-val">R$ 28,50 – R$ 34,20</span>
+    </div>
+    <div class="val-current">
+      <span class="val-current-label">Preço atual</span>
+      <div class="val-current-val">
+        <span class="val-current-price">R$ 22,40</span>
+        <span class="val-badge">21% desconto</span>
+      </div>
+    </div>
+  </div>
+  <p style="font-size:.7rem;color:var(--gray2);margin-top:.75rem;line-height:1.5">
+    ⚠ Valores ilustrativos. Não é recomendação de investimento.
+  </p>
+</section>
+
+<!-- PRICING -->
+<div class="pricing" id="planos">
+  <div class="pricing-inner">
+    <div class="reveal">
+      <div class="label section-eyebrow">Planos</div>
+      <h2 class="section-title">Simples e transparente</h2>
+      <p class="section-sub">Comece grátis. Faça upgrade quando quiser.</p>
+    </div>
+    <div class="plans reveal">
+
+      <!-- Gratuito -->
+      <div class="plan">
+        <div class="plan-name">Gratuito</div>
+        <div class="plan-price">R$<span style="font-size:2.2rem">0</span></div>
+        <div class="plan-desc">Para experimentar</div>
+        <ul class="plan-features">
+          <li>Até 5 ativos na carteira</li>
+          <li>Dashboard e cotações</li>
+          <li>Análise básica</li>
+          <li class="muted">Preço Justo FCD</li>
+          <li class="muted">Proventos futuros</li>
+          <li class="muted">Declaração de IR</li>
+        </ul>
+        <a href="/cadastro" class="btn-plan-outline">Criar conta grátis</a>
+      </div>
+
+      <!-- Mensal -->
+      <div class="plan featured">
+        <div class="plan-badge">Mais popular</div>
+        <div class="plan-name">Pro Mensal</div>
+        <div class="plan-price"><sup>R$</sup>{{ preco_mensal|int }}<span style="font-size:1rem">,90<span style="font-size:.85rem;color:var(--gray)">/mês</span></span></div>
+        <div class="plan-desc">Cancele quando quiser</div>
+        <ul class="plan-features">
+          <li>Ativos ilimitados</li>
+          <li>Dashboard completo</li>
+          <li>Preço Justo — 3 métodos</li>
+          <li>Proventos automáticos</li>
+          <li>Declaração de IR</li>
+          <li>Importar nota Rico</li>
+        </ul>
+        <a href="/cadastro?plano=mensal" class="btn-plan-gold">Assinar R${{ preco_mensal|int }},90/mês</a>
+      </div>
+
+    </div>
+
+    <!-- Anual destaque -->
+    <div class="reveal" style="margin-top:1rem;padding:1.1rem 1.25rem;background:rgba(201,168,76,.06);border:1px solid var(--border2);border-radius:14px;display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap">
+      <div>
+        <div style="font-size:.78rem;font-weight:600;color:var(--gold)">⭐ Plano Anual — Economize 44%</div>
+        <div style="font-size:.82rem;color:var(--gray);margin-top:.2rem">Mesmas funcionalidades Pro · R$ {{ preco_anual|int }},00/ano → <b style="color:var(--white)">equivale a R$16,58/mês</b></div>
+      </div>
+      <a href="/cadastro?plano=anual" class="btn-plan-gold" style="white-space:nowrap;padding:.65rem 1.2rem;font-size:.85rem">Assinar anual</a>
+    </div>
+  </div>
+</div>
+
+<!-- FAQ -->
+<section class="reveal">
+  <div class="label section-eyebrow">Dúvidas</div>
+  <h2 class="section-title">Perguntas frequentes</h2>
+  <div style="margin-top:1.5rem">
+    {% for q, a in [
+      ('Funciona no iPhone e Android?', 'Sim. O Portfex é um PWA — acesse pelo Safari (iPhone) ou Chrome (Android), toque em "Adicionar à Tela de Início" e ele vira um ícone igual a um app nativo, sem precisar da App Store.'),
+      ('Meus dados ficam seguros?', 'Sim. Seus dados ficam armazenados com segurança em servidores com criptografia. Nunca compartilhamos com terceiros.'),
+      ('Posso cancelar quando quiser?', 'Sim, sem fidelidade. Cancele a qualquer momento. O acesso continua até o fim do período já pago.'),
+      ('A análise de preço justo é uma recomendação?', 'Não. O Portfex calcula estimativas baseadas em dados históricos usando métodos conhecidos (FCD, Graham, EV/EBITDA). É uma ferramenta de análise, não aconselhamento financeiro.'),
+      ('A importação de nota funciona com qual corretora?', 'Atualmente com a Rico Investimentos. Outras corretoras estão no roadmap.'),
+      ('O que acontece se eu tiver mais de 5 ativos no plano grátis?', 'Você pode visualizar todos os ativos, mas não pode adicionar novos até fazer upgrade ou reduzir para 5.'),
+    ] %}
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)">
+        {{ q }}
+        <div class="icon">+</div>
+      </div>
+      <div class="faq-a">{{ a }}</div>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+
+<!-- FOOTER CTA -->
+<div style="padding:4rem 1.5rem;text-align:center;background:var(--bg2);border-top:1px solid var(--border)">
+  <div class="label" style="margin-bottom:.75rem">Comece hoje</div>
+  <h2 class="display" style="font-size:clamp(2rem,7vw,3rem);margin-bottom:1rem">
+    Sua carteira,<br>sob controle.
+  </h2>
+  <a href="/cadastro" class="btn-primary" style="margin:0 auto">
+    Criar conta grátis
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </a>
+</div>
+
+<footer>
+  <p>© 2026 Portfex · <a href="#">Privacidade</a> · <a href="#">Termos</a></p>
+</footer>
+
+<script>
+// ── Ticker tape ───────────────────────────────────────────────────
+const tickers = [
+  {t:'PETR4',p:'R$41,22',c:'+1.8%',up:true},{t:'BBAS3',p:'R$21,64',c:'-0.6%',up:false},
+  {t:'WEGE3',p:'R$58,40',c:'+2.3%',up:true},{t:'EGIE3',p:'R$33,73',c:'+0.9%',up:true},
+  {t:'MXRF11',p:'R$9,80',c:'-0.4%',up:false},{t:'VALE3',p:'R$58,12',c:'+1.2%',up:true},
+  {t:'ITUB4',p:'R$37,50',c:'+0.5%',up:true},{t:'KLBN11',p:'R$17,05',c:'-0.8%',up:false},
+  {t:'SAPR4',p:'R$7,16',c:'+3.1%',up:true},{t:'CPLE3',p:'R$14,44',c:'+1.7%',up:true},
+  {t:'SUZB3',p:'R$52,30',c:'+0.3%',up:true},{t:'RECV3',p:'R$10,78',c:'-1.2%',up:false},
+];
+// Duplicate for seamless loop
+const all = [...tickers, ...tickers];
+const tape = document.getElementById('tape');
+tape.innerHTML = all.map(t =>
+  `<span class="${t.up?'up':'dn'}"><b>${t.t}</b> ${t.p} <b>${t.c}</b></span>`
+).join('');
+
+// ── Scroll reveal ─────────────────────────────────────────────────
+const obs = new IntersectionObserver(entries => {
+  entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
+}, {threshold:0.12});
+document.querySelectorAll('.reveal').forEach(el => obs.observe(el));
+
+// ── FAQ toggle ────────────────────────────────────────────────────
+function toggleFaq(el) {
+  const item = el.parentElement;
+  const isOpen = item.classList.contains('open');
+  document.querySelectorAll('.faq-item.open').forEach(i => i.classList.remove('open'));
+  if (!isOpen) item.classList.add('open');
+}
+
+// ── PWA install ───────────────────────────────────────────────────
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/static/sw.js').catch(() => {});
+}
+</script>
+</body>
+</html>

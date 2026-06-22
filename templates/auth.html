@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#080c14">
+<title>{% if modo == 'login' %}Entrar{% else %}Criar conta{% endif %} — Portfex</title>
+<link rel="icon" href="/static/icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{--bg:#080c14;--bg2:#0d1120;--gold:#c9a84c;--gold2:#e8c96a;--white:#f0ece4;--gray:#9a9690;--gray2:#5a5650;--green:#3dba7e;--red:#e05c5c;--border:rgba(255,255,255,0.07);--border2:rgba(201,168,76,0.2);}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--white);min-height:100svh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:1.5rem;position:relative;overflow:hidden;}
+body::before{content:'';position:fixed;top:-20%;left:-20%;width:70%;height:70%;background:radial-gradient(ellipse,rgba(201,168,76,.06) 0%,transparent 70%);pointer-events:none;}
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:18px;padding:2.25rem 1.75rem;width:100%;max-width:400px;position:relative;z-index:1;}
+.card-top{height:3px;background:linear-gradient(90deg,transparent,var(--gold),transparent);margin:-2.25rem -1.75rem 2rem;border-radius:18px 18px 0 0;}
+.logo{font-family:'Syne',sans-serif;font-weight:800;font-size:1.75rem;background:linear-gradient(135deg,var(--gold),var(--gold2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;text-align:center;margin-bottom:.2rem;}
+.subtitle{text-align:center;font-size:.84rem;color:var(--gray);margin-bottom:1.75rem;}
+.form-group{margin-bottom:1rem;}
+label{display:block;font-size:.7rem;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--gray);margin-bottom:.4rem;}
+input{width:100%;padding:.65rem .85rem;border-radius:9px;border:1px solid var(--border);background:rgba(255,255,255,.04);color:var(--white);font-family:'Inter',sans-serif;font-size:.9rem;transition:border-color .15s,background .15s;outline:none;}
+input:focus{border-color:rgba(201,168,76,.45);background:rgba(201,168,76,.03);}
+input::placeholder{color:var(--gray2);}
+.error{display:none;background:rgba(224,92,92,.08);border:1px solid rgba(224,92,92,.22);border-radius:8px;padding:.65rem .9rem;font-size:.82rem;color:var(--red);margin-bottom:1rem;}
+.btn-submit{width:100%;padding:.78rem;border-radius:9px;border:none;background:linear-gradient(135deg,var(--gold),var(--gold2));color:#080c14;font-family:'Inter',sans-serif;font-size:.95rem;font-weight:700;cursor:pointer;margin-top:.4rem;transition:opacity .15s,transform .15s;}
+.btn-submit:hover{opacity:.9;transform:translateY(-1px);}
+.btn-submit:disabled{opacity:.5;cursor:not-allowed;transform:none;}
+.divider{text-align:center;font-size:.8rem;color:var(--gray2);margin:1.2rem 0;}
+.alt{text-align:center;font-size:.84rem;color:var(--gray);}
+.alt a{color:var(--gold);text-decoration:none;}
+.back{display:block;text-align:center;font-size:.78rem;color:var(--gray2);text-decoration:none;margin-top:1.5rem;}
+.back:hover{color:var(--gray);}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="card-top"></div>
+  <div class="logo">Portfex</div>
+  <div class="subtitle">{% if modo == 'login' %}Bem-vindo de volta{% else %}Crie sua conta gratuita{% endif %}</div>
+
+  <div class="error" id="errMsg"></div>
+
+  {% if modo == 'cadastro' %}
+  <div class="form-group">
+    <label>Seu nome</label>
+    <input type="text" id="nome" placeholder="Como podemos te chamar?" autocomplete="name">
+  </div>
+  {% endif %}
+
+  <div class="form-group">
+    <label>Email</label>
+    <input type="email" id="email" placeholder="seu@email.com" autocomplete="email">
+  </div>
+
+  <div class="form-group">
+    <label>Senha</label>
+    <input type="password" id="senha" placeholder="••••••••"
+           autocomplete="{% if modo == 'login' %}current-password{% else %}new-password{% endif %}">
+  </div>
+
+  <button class="btn-submit" id="btnSubmit" onclick="submit()">
+    {% if modo == 'login' %}Entrar{% else %}Criar conta grátis{% endif %}
+  </button>
+
+  <div class="divider">{% if modo == 'login' %}Não tem conta?{% else %}Já tem conta?{% endif %}</div>
+  <div class="alt">
+    {% if modo == 'login' %}<a href="/cadastro">Criar conta gratuita</a>{% else %}<a href="/login">Entrar na minha conta</a>{% endif %}
+  </div>
+</div>
+<a href="/" class="back">← Voltar ao início</a>
+
+<script>
+const MODO = '{{ modo }}';
+document.addEventListener('keydown', e => { if(e.key==='Enter') submit(); });
+
+async function submit(){
+  const btn = document.getElementById('btnSubmit');
+  const err = document.getElementById('errMsg');
+  err.style.display = 'none';
+
+  const email = document.getElementById('email').value.trim();
+  const senha  = document.getElementById('senha').value;
+  const nome   = document.getElementById('nome')?.value.trim();
+
+  if(!email || !senha || (MODO==='cadastro' && !nome)){
+    showErr('Preencha todos os campos.'); return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = MODO==='login' ? 'Entrando...' : 'Criando conta...';
+
+  try {
+    const endpoint = MODO==='login' ? '/api/auth/login' : '/api/auth/cadastro';
+    const body     = MODO==='login' ? {email, senha} : {email, senha, nome};
+    const resp = await fetch(endpoint, {
+      method:'POST', credentials:'include',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(body)
+    });
+    const data = await resp.json();
+    if(data.ok){
+      localStorage.setItem('pf_token', data.token);
+      const qs = new URLSearchParams(location.search);
+      window.location.href = qs.get('next') || '/app';
+    } else {
+      showErr(data.erro || 'Erro ao processar. Tente novamente.');
+      btn.disabled = false;
+      btn.textContent = MODO==='login' ? 'Entrar' : 'Criar conta grátis';
+    }
+  } catch(e) {
+    showErr('Erro de conexão. Verifique sua internet.');
+    btn.disabled = false;
+    btn.textContent = MODO==='login' ? 'Entrar' : 'Criar conta grátis';
+  }
+}
+
+function showErr(msg){
+  const el = document.getElementById('errMsg');
+  el.textContent = msg; el.style.display = 'block';
+}
+</script>
+</body>
+</html>
