@@ -816,7 +816,30 @@ function deleteAtivo(i){if(!confirm('Remover '+portfolio[i].ticker+'?'))return;p
 function openEdit(i){editIndex=i;const a=portfolio[i];document.getElementById('editTicker').value=a.ticker;document.getElementById('editClasse').value=a.classe;document.getElementById('editSetor').value=a.setor;document.getElementById('editQtd').value=a.qtd;document.getElementById('editPreco').value=a.preco;document.getElementById('editCotacao').value=a.cotacao;document.getElementById('editModal').classList.add('open');}
 function closeModal(id){document.getElementById(id).classList.remove('open');editIndex=-1;editAporteIndex=-1;}
 function saveEdit(){if(editIndex<0)return;const a=portfolio[editIndex];a.ticker=document.getElementById('editTicker').value.trim().toUpperCase();a.classe=document.getElementById('editClasse').value;a.setor=document.getElementById('editSetor').value.trim();a.qtd=parseFloat(document.getElementById('editQtd').value);a.preco=parseFloat(document.getElementById('editPreco').value);a.cotacao=parseFloat(document.getElementById('editCotacao').value);a.updatedAt=Date.now();save();closeModal('editModal');renderTable();showToast('Ativo atualizado');}
-function addAtivo(){const ticker=document.getElementById('fTicker').value.trim().toUpperCase(),classe=document.getElementById('fClasse').value,setor=document.getElementById('fSetor').value.trim()||'Não informado',qtd=parseFloat(document.getElementById('fQtd').value),preco=parseFloat(document.getElementById('fPreco').value),cotacao=parseFloat(document.getElementById('fCotacao').value)||preco,data=document.getElementById('fData').value,obs=document.getElementById('fObs').value.trim();if(!ticker||!qtd||!preco){showToast('Preencha ticker, quantidade e preço','red');return;}portfolio.push({ticker,classe,setor,qtd,preco,cotacao,data,obs,updatedAt:Date.now()});save();clearForm();showToast(ticker+' adicionado');}
+function addAtivo(){
+  const ticker=document.getElementById('fTicker').value.trim().toUpperCase(),
+        classe=document.getElementById('fClasse').value,
+        setor=document.getElementById('fSetor').value.trim()||'Não informado',
+        qtd=parseFloat(document.getElementById('fQtd').value),
+        preco=parseFloat(document.getElementById('fPreco').value),
+        cotacao=parseFloat(document.getElementById('fCotacao').value)||preco,
+        data=document.getElementById('fData').value,
+        obs=document.getElementById('fObs').value.trim();
+  if(!ticker||!qtd||!preco){showToast('Preencha ticker, quantidade e preço','red');return;}
+  // Verifica limite do plano gratuito ANTES de adicionar
+  const cfg = window.__PORTFEX__ || {};
+  if(!cfg.pro && cfg.limite){
+    const jaExiste = portfolio.some(a => a.ticker === ticker);
+    if(!jaExiste && portfolio.length >= cfg.limite){
+      showToast('Limite de '+cfg.limite+' ativos do plano gratuito atingido. Faça upgrade!','gold');
+      // Mostra banner de upgrade
+      _renderUpgradeBanner(portfolio.length, cfg.limite);
+      return;
+    }
+  }
+  portfolio.push({ticker,classe,setor,qtd,preco,cotacao,data,obs,updatedAt:Date.now()});
+  save();clearForm();showToast(ticker+' adicionado');
+}
 function clearForm(){['fTicker','fSetor','fQtd','fPreco','fCotacao','fData','fObs'].forEach(id=>document.getElementById(id).value='');document.getElementById('fClasse').value='Ações';}
 function renderMetas(){
   const total=getTotalInv(),bC={};portfolio.forEach(a=>{bC[a.classe]=(bC[a.classe]||0)+a.qtd*a.preco;});
