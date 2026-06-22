@@ -1,6 +1,6 @@
 """
 Portfex Web — Financial Logic
-Extracted from portfex.py desktop and adapted for multi-user web context.
+All financial calculations: quotes, FCD, Graham, EV/EBITDA, IR, proventos.
 """
 import urllib.request, urllib.error, urllib.parse
 import json, re, io, zipfile, csv, time
@@ -30,7 +30,6 @@ try:
 except ImportError:
     PDF_GEN_SUPPORT = False
 
-# ── Financial Logic — Portfex Web ──────────────────────────────
 
 
 NOME_TICKER = {
@@ -81,604 +80,6 @@ MULTIPLOS_SETOR = {
     "Industrials": 9.0, "Technology": 14.0, "Real Estate": 14.0,
     "Consumer Cyclical": 8.0, "Communication Services": 10.0,
 }
-
-def fetch_quote(ticker):
-    url = f"https://brapi.dev/api/quote/{ticker}?token=demo"
-    try:
-        req = urllib.request.Request(url, headers={"User-Agent": "Portfex/2.0"})
-        with urllib.request.urlopen(req, timeout=5) as resp:
-            return json.loads(resp.read().decode())
-    except Exception as e:
-        return {"error": str(e)}
-
-# ── Handler HTTP ─────────────────────────────────────────────────
-class Handler(BaseHTTPRequestHandler):
-
-    def log_message(self, fmt, *args):
-        pass  # silencia logs no terminal
-
-    def send_json(self, data, status=200):
-        body = json.dumps(data, ensure_ascii=False).encode()
-        self.send_response(status)
-        self.send_header("Content-Type", "application/json; charset=utf-8")
-        self.send_header("Content-Length", len(body))
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type")
-        self.end_headers()
-        self.wfile.write(body)
-
-    def do_OPTIONS(self):
-        self.send_response(204)
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type")
-        self.end_headers()
-
-    def send_html(self, html: str):
-        body = html.encode("utf-8")
-        self.send_response(200)
-        self.send_header("Content-Type", "text/html; charset=utf-8")
-        self.send_header("Content-Length", len(body))
-        self.end_headers()
-        self.wfile.write(body)
-
-    def do_OPTIONS(self):
-        self.send_response(204)
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type")
-        self.end_headers()
-
-    def _processar_negocios(self, posicoes, payload, portfolio=None):
-        """
-        Calcula posições por ticker/ano. Na primeira vez que um ticker
-        aparece num ano, a posição é SEMEADA com o que já está cadastrado
-        em 'Meus Ativos' (quantidade e PM atuais) — depois disso, as
-        compras/vendas das notas vão ajustando qtd e PM ponderado.
-        """
-        for neg in payload.get("negocios_confirmados", []):
-            ticker = neg.get("ticker","")
-            ano = payload.get("data_pregao","")[-4:]
-            if not ticker or not ano: continue
-            key = f"{ticker}_{ano}"
-            if key not in posicoes:
-                ativo = next((a for a in (portfolio or []) if a.get("ticker")==ticker), None)
-                if ativo and ativo.get("qtd",0) > 0:
-                    qtd0=ativo["qtd"]; pm0=ativo.get("preco",0)
-                    posicoes[key]={"ticker":ticker,"ano":ano,"qtd":qtd0,
-                                   "custo_total":round(qtd0*pm0,2),"pm":pm0,"vendas":[]}
-                else:
-                    posicoes[key]={"ticker":ticker,"ano":ano,"qtd":0,"custo_total":0.0,"pm":0.0,"vendas":[]}
-            pos = posicoes[key]
-            if neg["cv"]=="C":
-                pos["custo_total"]=round(pos["custo_total"]+neg["custo_total"],2)
-                pos["qtd"]+=neg["qtd"]
-                pos["pm"]=round(pos["custo_total"]/pos["qtd"],4) if pos["qtd"] else 0
-            elif neg["cv"]=="V":
-                custo=round(pos["pm"]*neg["qtd"],2)
-                lucro=round(neg["valor_operacao"]-custo-neg.get("taxas_prop",0),2)
-                pos["custo_total"]=round(pos["custo_total"]-custo,2)
-                pos["qtd"]=max(0,pos["qtd"]-neg["qtd"])
-                pos["pm"]=round(pos["custo_total"]/pos["qtd"],4) if pos["qtd"] else 0
-                pos["vendas"].append({"data":payload.get("data_pregao"),"qtd":neg["qtd"],"preco_venda":neg["preco"],"valor_venda":neg["valor_operacao"],"custo":custo,"lucro":lucro,"day_trade":neg.get("day_trade",False)})
-
-    def _recalcular_ano(self, ir_data, portfolio, ano):
-        """Remove e recalcula todas as posições de um ano a partir do zero."""
-        ir_data["posicoes"] = {k:v for k,v in ir_data["posicoes"].items() if not k.endswith(f"_{ano}")}
-        for n in ir_data["notas"]:
-            if n.get("data_pregao","")[-4:] == ano:
-                self._processar_negocios(ir_data["posicoes"], n, portfolio)
-
-    def do_GET(self):
-        path = self.path.split("?")[0]
-
-        if path == "/" or path == "/index.html":
-            self.send_html(get_html())
-            return
-
-        if path == "/api/data":
-            self.send_json(load_data())
-            return
-
-        if path.startswith("/api/quote/"):
-            ticker = path.split("/")[-1].upper()
-            self.send_json(fetch_quote(ticker))
-            return
-
-        if path == "/api/ping":
-            data = load_data()
-            self.send_json({
-                "ok": True, "service": "Portfex",
-                "data_file": str(DATA_FILE),
-                "file_exists": DATA_FILE.exists(),
-                "portfolio_count": len(data.get("portfolio",[])),
-                "notas_ir": len(data.get("ir_data",{}).get("notas",[]))
-            })
-            return
-
-        if path == "/api/ir-data":
-            data = load_data()
-            self.send_json(data.get("ir_data", {"notas":[], "posicoes":{}}))
-            return
-
-        if path == "/api/shutdown":
-            self.send_json({"ok": True, "message": "Portfex encerrado"})
-            threading.Thread(target=lambda: (__import__("time").sleep(0.5), __import__("os")._exit(0)), daemon=True).start()
-            return
-
-        if path == "/api/ir-check":
-            self.send_json({"pdf_support": PDF_SUPPORT, "pdf_gen_support": PDF_GEN_SUPPORT})
-            return
-
-        if path == "/api/proventos":
-            # Busca proventos automaticamente via yfinance para ativos da carteira
-            data = load_data()
-            portfolio = data.get("portfolio", [])
-            proventos = buscar_proventos_carteira(portfolio)
-            self.send_json({"ok": True, "proventos": proventos})
-            return
-
-        if path.startswith("/api/ir-pdf/"):
-            ano = path.split("/")[-1]
-            data = load_data()
-            ir = data.get("ir_data", {"notas": [], "posicoes": {}})
-            if not PDF_GEN_SUPPORT:
-                self.send_response(503)
-                self.send_header("Content-Type", "application/json")
-                self.end_headers()
-                self.wfile.write(json.dumps({"error": "reportlab não instalado. Execute: pip install reportlab"}).encode())
-                return
-            try:
-                pdf_bytes = gerar_pdf_ir(ir.get("posicoes", {}), ir.get("notas", []), ano)
-                filename = f"Portfex_IR_{ano}.pdf"
-                self.send_response(200)
-                self.send_header("Content-Type", "application/pdf")
-                self.send_header("Content-Disposition", f'attachment; filename="{filename}"')
-                self.send_header("Content-Length", len(pdf_bytes))
-                self.send_header("Access-Control-Allow-Origin", "*")
-                self.end_headers()
-                self.wfile.write(pdf_bytes)
-            except Exception as e:
-                self.send_response(500)
-                self.end_headers()
-                self.wfile.write(str(e).encode())
-            return
-
-        if path == "/api/debug":
-            import sys
-            info = {"python": sys.version, "yf_support": YF_SUPPORT}
-            try:
-                import yfinance as _yf
-                info["yf_version"] = getattr(_yf, "__version__", "ok")
-                info["yf_ok"] = True
-            except Exception as e:
-                info["yf_ok"] = False
-                info["yf_error"] = str(e)
-            self.send_json(info)
-            return
-
-        if path == "/api/analisar-carteira":
-            data = load_data()
-            portfolio = data.get("portfolio", [])
-            tickers_carteira = [a["ticker"] for a in portfolio if a.get("classe") in ("Ações","Internacional")]
-            top30 = get_top30_excluindo_carteira(portfolio)
-            self.send_json({
-                "ok": True,
-                "carteira": tickers_carteira,
-                "top30": top30,
-                "yf_support": YF_SUPPORT
-            })
-            return
-
-        if path == "/api/analisar-fcd":
-            qs = self.path.split("?", 1)
-            params = dict(p.split("=", 1) for p in qs[1].split("&") if "=" in p) if len(qs) > 1 else {}
-            ticker = params.get("ticker", "").upper().strip()
-            if not ticker:
-                self.send_json({"ok": False, "erro": "ticker obrigatório", "ticker": ""})
-            else:
-                try:
-                    result = analisar_fcd(ticker)
-                    if "ticker" not in result: result["ticker"] = ticker
-                    self.send_json(result)
-                except Exception as e:
-                    import traceback
-                    self.send_json({"ok": False, "erro": str(e), "ticker": ticker, "trace": traceback.format_exc()})
-            return
-
-        if path == "/api/proventos":
-            data = load_data()
-            portfolio = data.get("portfolio", [])
-            proventos = buscar_proventos_carteira(portfolio)
-            self.send_json({"ok": True, "proventos": proventos})
-            return
-
-        self.send_response(404)
-        self.end_headers()
-
-    def do_POST(self):
-        if self.path == "/api/data":
-            length = int(self.headers.get("Content-Length", 0))
-            body   = self.rfile.read(length)
-            try:
-                data = json.loads(body.decode("utf-8"))
-                save_data(data)
-                self.send_json({"ok": True})
-            except Exception as e:
-                self.send_json({"ok": False, "error": str(e)}, 500)
-            return
-
-
-        if self.path == "/api/nota-pdf":
-            length = int(self.headers.get("Content-Length", 0))
-            pdf_bytes = self.rfile.read(length)
-            try: self.send_json(parse_rico_pdf(pdf_bytes))
-            except Exception as e: self.send_json({"erros":[str(e)],"negocios":[]})
-            return
-
-        if self.path == "/api/ir-salvar":
-            length = int(self.headers.get("Content-Length", 0))
-            body = self.rfile.read(length)
-            try:
-                payload = json.loads(body.decode("utf-8"))
-                data = load_data()
-                if "ir_data" not in data: data["ir_data"]={"notas":[],"posicoes":{}}
-                portfolio = data.get("portfolio", [])
-                ano = payload.get("data_pregao","")[-4:]
-
-                nota_id = payload.get("id")
-                if nota_id:
-                    data["ir_data"]["notas"] = [n for n in data["ir_data"]["notas"] if n.get("id") != nota_id]
-                else:
-                    payload["id"] = str(int(__import__("time").time()*1000))
-                data["ir_data"]["notas"].append(payload)
-
-                # Recalcula o ano inteiro do zero (semeando da carteira atual)
-                self._recalcular_ano(data["ir_data"], portfolio, ano)
-
-                # ── Atualiza apenas Meus Ativos (qtd/PM) — NÃO cria lançamento em Aportes & Resgates ──
-                # As notas de corretagem servem só para o cálculo de IR; aportes manuais ficam separados.
-                for neg in payload.get("negocios_confirmados", []):
-                    ticker = neg.get("ticker","")
-                    if not ticker: continue
-                    data_pregao = payload.get("data_pregao","")
-
-                    ativo = next((a for a in portfolio if a.get("ticker")==ticker), None)
-                    if neg["cv"]=="C":
-                        if ativo:
-                            qtd_total = ativo["qtd"] + neg["qtd"]
-                            custo_total = ativo["qtd"]*ativo["preco"] + neg["custo_total"]
-                            pm_anterior = ativo["preco"]
-                            ativo["qtd"] = qtd_total
-                            ativo["preco"] = round(custo_total/qtd_total, 4) if qtd_total else 0
-                            # Converte dd/mm/aaaa -> aaaa-mm-dd (formato esperado pelo histórico)
-                            try:
-                                dd, mm, aaaa = data_pregao.split("/")
-                                data_iso = f"{aaaa}-{mm}-{dd}"
-                            except Exception:
-                                data_iso = data_pregao
-                            if "historicoCompras" not in ativo: ativo["historicoCompras"] = []
-                            ativo["historicoCompras"].append({
-                                "id": int(__import__("time").time()*1000),
-                                "data": data_iso, "obs": f'Nota {payload.get("nr_nota","")}',
-                                "qtdComprada": neg["qtd"], "precoCompra": neg.get("pm_real",neg["preco"]),
-                                "corretagem": neg.get("taxas_prop",0), "pmAnterior": pm_anterior,
-                                "pmNovo": ativo["preco"], "totalPago": neg["custo_total"],
-                                "notaId": payload["id"]
-                            })
-                        else:
-                            portfolio.append({
-                                "ticker": ticker, "classe": "FII" if ticker.endswith("11") else "Ações",
-                                "setor": "", "qtd": neg["qtd"], "preco": neg.get("pm_real",neg["preco"]),
-                                "cotacao": neg.get("pm_real",neg["preco"]), "data":"", "obs":"",
-                                "updatedAt": int(__import__("time").time()*1000)
-                            })
-                    elif neg["cv"]=="V" and ativo:
-                        ativo["qtd"] = max(0, ativo["qtd"] - neg["qtd"])
-
-                data["portfolio"] = portfolio
-
-                save_data(data)
-                self.send_json({"ok":True})
-            except Exception as e:
-                import traceback
-                self.send_json({"ok":False,"error":str(e),"trace":traceback.format_exc()})
-            return
-
-        if self.path == "/api/ir-excluir":
-            length = int(self.headers.get("Content-Length", 0))
-            body = self.rfile.read(length)
-            try:
-                params = json.loads(body.decode("utf-8"))
-                nota_id = params.get("id")
-                data = load_data()
-                if "ir_data" not in data: data["ir_data"]={"notas":[],"posicoes":{}}
-                nota = next((n for n in data["ir_data"]["notas"] if n.get("id")==nota_id), None)
-                if nota:
-                    ano = nota.get("data_pregao","")[-4:]
-                    data["ir_data"]["notas"] = [n for n in data["ir_data"]["notas"] if n.get("id")!=nota_id]
-                    self._recalcular_ano(data["ir_data"], data.get("portfolio", []), ano)
-                    save_data(data)
-                self.send_json({"ok":True})
-            except Exception as e: self.send_json({"ok":False,"error":str(e)})
-            return
-
-        if self.path == "/api/excluir-compra":
-            length = int(self.headers.get("Content-Length", 0))
-            body = self.rfile.read(length)
-            try:
-                params = json.loads(body.decode("utf-8"))
-                ticker = params.get("ticker")
-                compra_id = params.get("id")
-                data = load_data()
-                portfolio = data.get("portfolio", [])
-                ativo = next((a for a in portfolio if a.get("ticker") == ticker), None)
-                if ativo and ativo.get("historicoCompras"):
-                    ativo["historicoCompras"] = [c for c in ativo["historicoCompras"] if c.get("id") != compra_id]
-                    # Recalcula qtd/PM do ativo a partir do zero, somando as compras restantes
-                    if ativo["historicoCompras"]:
-                        qtd_total = sum(c["qtdComprada"] for c in ativo["historicoCompras"])
-                        custo_total = sum(c["qtdComprada"]*c["precoCompra"] + c.get("corretagem",0) for c in ativo["historicoCompras"])
-                        ativo["qtd"] = qtd_total
-                        ativo["preco"] = round(custo_total/qtd_total, 4) if qtd_total else 0
-                    # Se não houver mais histórico, mantém qtd/preco atuais (não zera, pois pode ter posição anterior ao controle)
-                save_data(data)
-                self.send_json({"ok": True})
-            except Exception as e:
-                self.send_json({"ok": False, "error": str(e)})
-            return
-
-        if self.path == "/api/import-carteira":
-            length = int(self.headers.get("Content-Length", 0))
-            body = self.rfile.read(length)
-            try:
-                imported = json.loads(body.decode("utf-8"))
-                current = load_data()
-                if isinstance(imported, list): current["portfolio"]=imported
-                else:
-                    for k in ["portfolio","metas","aportes"]:
-                        if imported.get(k): current[k]=imported[k]
-                save_data(current)
-                self.send_json({"ok":True,"ativos":len(current["portfolio"]),"aportes":len(current.get("aportes",[]))})
-            except Exception as e: self.send_json({"ok":False,"error":str(e)})
-            return
-
-
-        self.send_response(404)
-        self.end_headers()
-
-# ── HTML inline ──────────────────────────────────────────────────
-
-def _baixar_cvm_itr(ano: int) -> dict:
-    """
-    Baixa o ZIP do ITR da CVM e extrai os dados de DFC (Fluxo de Caixa),
-    DRE (Resultado) e BPP (Balanço) para todos os tickers.
-    Retorna dict: {cd_cvm: {receita, ebit, fco, divida_liq, acoes, ...}}
-    """
-    cache_key = f"itr_{ano}"
-    if cache_key in _cvm_cache:
-        return _cvm_cache[cache_key]
-
-    import zipfile, io, csv as csv_mod
-
-    result = {}
-    urls = [
-        f"https://dados.cvm.gov.br/dados/CIA_ABERTA/DOC/ITR/DADOS/itr_cia_aberta_{ano}.zip",
-        f"https://dados.cvm.gov.br/dados/CIA_ABERTA/DOC/DFP/DADOS/dfp_cia_aberta_{ano}.zip",
-    ]
-
-    zdata = None
-    for url in urls:
-        try:
-            req = urllib.request.Request(url, headers={
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-                "Accept": "*/*", "Referer": "https://dados.cvm.gov.br/",
-            })
-            with urllib.request.urlopen(req, timeout=45) as resp:
-                zdata = resp.read()
-            break
-        except Exception:
-            continue
-
-    if not zdata:
-        return {}
-
-    try:
-        with zipfile.ZipFile(io.BytesIO(zdata)) as z:
-            files = z.namelist()
-
-            # Arquivos relevantes
-            # DFC_MD = Demonstração de Fluxo de Caixa (Método Direto ou Indireto)
-            # DRE = Demonstração do Resultado
-            # BPP = Balanço Patrimonial Passivo (Dívida)
-            # FCA = Composição do Capital (número de ações)
-            targets = {
-                "dfc": [f for f in files if "dfc" in f.lower() and f.endswith(".csv")],
-                "dre": [f for f in files if "dre" in f.lower() and f.endswith(".csv")],
-                "bpp": [f for f in files if "bpp" in f.lower() and f.endswith(".csv")],
-                "capital": [f for f in files if "capital" in f.lower() and f.endswith(".csv")],
-            }
-
-            empresa_data = {}  # cd_cvm -> {}
-
-            # ── DFC: Fluxo de Caixa Operacional ──────────────────────
-            for fname in targets["dfc"][:2]:
-                try:
-                    with z.open(fname) as f:
-                        reader = csv_mod.DictReader(
-                            io.TextIOWrapper(f, encoding='latin-1'), delimiter=';'
-                        )
-                        for row in reader:
-                            cd = row.get("CD_CVM","").strip()
-                            ds = row.get("DS_CONTA","").strip().upper()
-                            vl = row.get("VL_CONTA","0").replace(".","").replace(",",".")
-                            ordem = row.get("ORDEM_EXERC","").strip()
-                            if ordem.upper() == "PENÚLTIMO": continue
-                            if not cd: continue
-                            if cd not in empresa_data: empresa_data[cd] = {}
-                            try: vl = float(vl) * 1000  # CVM reporta em milhares
-                            except: vl = 0
-                            # FCO
-                            if any(k in ds for k in ["FLUXO DE CAIXA DAS ATIVIDADES OPERACIONAIS",
-                                                       "CAIXA GERADO NAS OPERAÇÕES",
-                                                       "DAS ATIVIDADES OPERACIONAIS"]) and "CD_CONTA" in row:
-                                cd_conta = row.get("CD_CONTA","")
-                                if cd_conta in ("6.01","6.01.00","1.01") or ds.startswith("CAIXA LÍQUIDO"):
-                                    if abs(vl) > abs(empresa_data[cd].get("fco",0)):
-                                        empresa_data[cd]["fco"] = vl
-                except Exception:
-                    continue
-
-            # ── DRE: Receita e EBIT ───────────────────────────────────
-            for fname in targets["dre"][:2]:
-                try:
-                    with z.open(fname) as f:
-                        reader = csv_mod.DictReader(
-                            io.TextIOWrapper(f, encoding='latin-1'), delimiter=';'
-                        )
-                        for row in reader:
-                            cd = row.get("CD_CVM","").strip()
-                            ds = row.get("DS_CONTA","").strip().upper()
-                            cd_conta = row.get("CD_CONTA","").strip()
-                            vl = row.get("VL_CONTA","0").replace(".","").replace(",",".")
-                            ordem = row.get("ORDEM_EXERC","").strip()
-                            if ordem.upper() == "PENÚLTIMO": continue
-                            if not cd: continue
-                            if cd not in empresa_data: empresa_data[cd] = {}
-                            try: vl = float(vl) * 1000
-                            except: vl = 0
-                            # Receita Líquida: conta 3.01
-                            if cd_conta.startswith("3.01"):
-                                if abs(vl) > abs(empresa_data[cd].get("receita",0)):
-                                    empresa_data[cd]["receita"] = vl
-                            # EBIT: conta 3.05
-                            if cd_conta.startswith("3.05"):
-                                if abs(vl) > abs(empresa_data[cd].get("ebit",0)):
-                                    empresa_data[cd]["ebit"] = vl
-                            # Lucro Líquido: conta 3.11
-                            if cd_conta.startswith("3.11"):
-                                if abs(vl) > abs(empresa_data[cd].get("lucro_liq",0)):
-                                    empresa_data[cd]["lucro_liq"] = vl
-                except Exception:
-                    continue
-
-            # ── BPP: Dívida Bruta ─────────────────────────────────────
-            for fname in targets["bpp"][:2]:
-                try:
-                    with z.open(fname) as f:
-                        reader = csv_mod.DictReader(
-                            io.TextIOWrapper(f, encoding='latin-1'), delimiter=';'
-                        )
-                        for row in reader:
-                            cd = row.get("CD_CVM","").strip()
-                            cd_conta = row.get("CD_CONTA","").strip()
-                            vl = row.get("VL_CONTA","0").replace(".","").replace(",",".")
-                            ordem = row.get("ORDEM_EXERC","").strip()
-                            if ordem.upper() == "PENÚLTIMO": continue
-                            if not cd: continue
-                            if cd not in empresa_data: empresa_data[cd] = {}
-                            try: vl = float(vl) * 1000
-                            except: vl = 0
-                            # Empréstimos e Financiamentos CP: 2.01.04, LP: 2.02.01
-                            if cd_conta in ("2.01.04","2.02.01"):
-                                empresa_data[cd]["divida_bruta"] =                                     empresa_data[cd].get("divida_bruta",0) + abs(vl)
-                except Exception:
-                    continue
-
-        result = empresa_data
-    except Exception:
-        pass
-
-    _cvm_cache[cache_key] = result
-    return result
-
-def _get_acoes_e_preco(ticker: str) -> dict:
-    """
-    Busca número de ações e preço atual via Yahoo Finance (fallback rápido).
-    Esses dados a CVM não fornece de forma fácil em tempo real.
-    """
-    info = {}
-    if not YF_SUPPORT:
-        return info
-    try:
-        yt = ticker + ".SA" if not ticker.endswith(".SA") else ticker
-        t = yf.Ticker(yt)
-        i = t.info or {}
-        info["preco_atual"]   = i.get("currentPrice") or i.get("regularMarketPrice") or 0
-        info["acoes"]         = i.get("sharesOutstanding") or 0
-        info["nome"]          = i.get("longName") or i.get("shortName") or ticker
-        info["setor"]         = i.get("sector") or ""
-        info["dy"]            = round((i.get("dividendYield") or 0)*100, 1)
-        info["roe"]           = round((i.get("returnOnEquity") or 0)*100, 1)
-        info["pl"]            = round(i.get("trailingPE") or 0, 1)
-        info["pvp"]           = round(i.get("priceToBook") or 0, 2)
-        info["caixa"]         = i.get("totalCash") or 0
-        # Se CVM não tiver FCO, usa yfinance como fallback
-        info["fco_yf"]        = i.get("operatingCashflow") or 0
-        info["capex_yf"]      = i.get("capitalExpenditures") or 0
-        info["receita_yf"]    = i.get("totalRevenue") or 0
-        info["ebitda_yf"]     = i.get("ebitda") or 0
-        info["lucro_yf"]      = i.get("netIncomeToCommon") or 0
-        info["crescimento"]   = abs(i.get("earningsGrowth") or i.get("revenueGrowth") or 0.08)
-    except Exception:
-        pass
-    return info
-
-def buscar_proventos_carteira(portfolio: list) -> list:
-    """
-    Busca proventos anunciados para os ativos da carteira via yfinance.
-    Retorna lista de proventos com ticker, valor, datas e tipo.
-    """
-    if not YF_SUPPORT:
-        return []
-    
-    proventos = []
-    hoje = __import__("datetime").date.today()
-    
-    for ativo in portfolio:
-        ticker = ativo.get("ticker", "")
-        if not ticker: continue
-        try:
-            yt = ticker + ".SA"
-            t = yf.Ticker(yt)
-            # Busca histórico de dividendos
-            divs = t.dividends
-            if divs is None or len(divs) == 0:
-                continue
-            # Pega os últimos 12 meses de dividendos como referência
-            # e o próximo dividendo se disponível
-            info = t.info or {}
-            prox_div_data = info.get("exDividendDate")
-            prox_div_valor = info.get("dividendRate", 0)
-            
-            if prox_div_data and prox_div_valor:
-                import datetime
-                try:
-                    data_ex = datetime.date.fromtimestamp(prox_div_data)
-                    if data_ex >= hoje:
-                        tipo = "JCP" if ticker.startswith(("BBAS","ITUB","BBDC","BRAD","SANB")) else "Dividendo"
-                        if ticker.endswith("11"): tipo = "Rendimento"
-                        proventos.append({
-                            "ticker": ticker,
-                            "valor": round(prox_div_valor / 4, 4),  # trimestraliza o valor anual
-                            "dataCom": data_ex.strftime("%d/%m/%Y"),
-                            "dataPagamento": data_ex.strftime("%d/%m/%Y"),
-                            "tipo": tipo,
-                            "qtd": ativo.get("qtd", 0),
-                            "totalReceber": round((prox_div_valor / 4) * ativo.get("qtd", 0), 2),
-                            "dy12m": round((info.get("dividendYield") or 0) * 100, 2),
-                        })
-                except Exception:
-                    pass
-        except Exception:
-            continue
-    
-    return sorted(proventos, key=lambda x: x.get("dataCom", "9999"))
-
-def get_top30_excluindo_carteira(portfolio: list) -> list:
-    tickers_carteira = {a.get("ticker","").upper() for a in portfolio}
-    return [t for t in IBOV_TOP30 if t not in tickers_carteira][:30]
 
 def nome_para_ticker(nome):
     n = nome.upper().strip()
@@ -1017,45 +418,246 @@ TICKER_CVM = {
 # ── Cache CVM (evita re-download do mesmo ZIP) ─────────────────────
 _cvm_cache = {}
 
-def _processar_negocios(posicoes, payload, portfolio=None):
-    """
-    Calcula posições por ticker/ano. Na primeira vez que um ticker
-    aparece num ano, a posição é SEMEADA com o que já está cadastrado
-    em 'Meus Ativos' (quantidade e PM atuais) — depois disso, as
-    compras/vendas das notas vão ajustando qtd e PM ponderado.
-    """
-    for neg in payload.get("negocios_confirmados", []):
-        ticker = neg.get("ticker","")
-        ano = payload.get("data_pregao","")[-4:]
-        if not ticker or not ano: continue
-        key = f"{ticker}_{ano}"
-        if key not in posicoes:
-            ativo = next((a for a in (portfolio or []) if a.get("ticker")==ticker), None)
-            if ativo and ativo.get("qtd",0) > 0:
-                qtd0=ativo["qtd"]; pm0=ativo.get("preco",0)
-                posicoes[key]={"ticker":ticker,"ano":ano,"qtd":qtd0,
-                               "custo_total":round(qtd0*pm0,2),"pm":pm0,"vendas":[]}
-            else:
-                posicoes[key]={"ticker":ticker,"ano":ano,"qtd":0,"custo_total":0.0,"pm":0.0,"vendas":[]}
-        pos = posicoes[key]
-        if neg["cv"]=="C":
-            pos["custo_total"]=round(pos["custo_total"]+neg["custo_total"],2)
-            pos["qtd"]+=neg["qtd"]
-            pos["pm"]=round(pos["custo_total"]/pos["qtd"],4) if pos["qtd"] else 0
-        elif neg["cv"]=="V":
-            custo=round(pos["pm"]*neg["qtd"],2)
-            lucro=round(neg["valor_operacao"]-custo-neg.get("taxas_prop",0),2)
-            pos["custo_total"]=round(pos["custo_total"]-custo,2)
-            pos["qtd"]=max(0,pos["qtd"]-neg["qtd"])
-            pos["pm"]=round(pos["custo_total"]/pos["qtd"],4) if pos["qtd"] else 0
-            pos["vendas"].append({"data":payload.get("data_pregao"),"qtd":neg["qtd"],"preco_venda":neg["preco"],"valor_venda":neg["valor_operacao"],"custo":custo,"lucro":lucro,"day_trade":neg.get("day_trade",False)})
+def fetch_quote(ticker):
+    url = f"https://brapi.dev/api/quote/{ticker}?token=demo"
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "Portfex/2.0"})
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            return json.loads(resp.read().decode())
+    except Exception as e:
+        return {"error": str(e)}
 
-def _recalcular_ano(ir_data, portfolio, ano):
-    """Remove e recalcula todas as posições de um ano a partir do zero."""
-    ir_data["posicoes"] = {k:v for k,v in ir_data["posicoes"].items() if not k.endswith(f"_{ano}")}
-    for n in ir_data["notas"]:
-        if n.get("data_pregao","")[-4:] == ano:
-            _processar_negocios(ir_data["posicoes"], n, portfolio)
+# ── Handler HTTP ─────────────────────────────────────────────────
+
+def _baixar_cvm_itr(ano: int) -> dict:
+    """
+    Baixa o ZIP do ITR da CVM e extrai os dados de DFC (Fluxo de Caixa),
+    DRE (Resultado) e BPP (Balanço) para todos os tickers.
+    Retorna dict: {cd_cvm: {receita, ebit, fco, divida_liq, acoes, ...}}
+    """
+    cache_key = f"itr_{ano}"
+    if cache_key in _cvm_cache:
+        return _cvm_cache[cache_key]
+
+    import zipfile, io, csv as csv_mod
+
+    result = {}
+    urls = [
+        f"https://dados.cvm.gov.br/dados/CIA_ABERTA/DOC/ITR/DADOS/itr_cia_aberta_{ano}.zip",
+        f"https://dados.cvm.gov.br/dados/CIA_ABERTA/DOC/DFP/DADOS/dfp_cia_aberta_{ano}.zip",
+    ]
+
+    zdata = None
+    for url in urls:
+        try:
+            req = urllib.request.Request(url, headers={
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+                "Accept": "*/*", "Referer": "https://dados.cvm.gov.br/",
+            })
+            with urllib.request.urlopen(req, timeout=45) as resp:
+                zdata = resp.read()
+            break
+        except Exception:
+            continue
+
+    if not zdata:
+        return {}
+
+    try:
+        with zipfile.ZipFile(io.BytesIO(zdata)) as z:
+            files = z.namelist()
+
+            # Arquivos relevantes
+            # DFC_MD = Demonstração de Fluxo de Caixa (Método Direto ou Indireto)
+            # DRE = Demonstração do Resultado
+            # BPP = Balanço Patrimonial Passivo (Dívida)
+            # FCA = Composição do Capital (número de ações)
+            targets = {
+                "dfc": [f for f in files if "dfc" in f.lower() and f.endswith(".csv")],
+                "dre": [f for f in files if "dre" in f.lower() and f.endswith(".csv")],
+                "bpp": [f for f in files if "bpp" in f.lower() and f.endswith(".csv")],
+                "capital": [f for f in files if "capital" in f.lower() and f.endswith(".csv")],
+            }
+
+            empresa_data = {}  # cd_cvm -> {}
+
+            # ── DFC: Fluxo de Caixa Operacional ──────────────────────
+            for fname in targets["dfc"][:2]:
+                try:
+                    with z.open(fname) as f:
+                        reader = csv_mod.DictReader(
+                            io.TextIOWrapper(f, encoding='latin-1'), delimiter=';'
+                        )
+                        for row in reader:
+                            cd = row.get("CD_CVM","").strip()
+                            ds = row.get("DS_CONTA","").strip().upper()
+                            vl = row.get("VL_CONTA","0").replace(".","").replace(",",".")
+                            ordem = row.get("ORDEM_EXERC","").strip()
+                            if ordem.upper() == "PENÚLTIMO": continue
+                            if not cd: continue
+                            if cd not in empresa_data: empresa_data[cd] = {}
+                            try: vl = float(vl) * 1000  # CVM reporta em milhares
+                            except: vl = 0
+                            # FCO
+                            if any(k in ds for k in ["FLUXO DE CAIXA DAS ATIVIDADES OPERACIONAIS",
+                                                       "CAIXA GERADO NAS OPERAÇÕES",
+                                                       "DAS ATIVIDADES OPERACIONAIS"]) and "CD_CONTA" in row:
+                                cd_conta = row.get("CD_CONTA","")
+                                if cd_conta in ("6.01","6.01.00","1.01") or ds.startswith("CAIXA LÍQUIDO"):
+                                    if abs(vl) > abs(empresa_data[cd].get("fco",0)):
+                                        empresa_data[cd]["fco"] = vl
+                except Exception:
+                    continue
+
+            # ── DRE: Receita e EBIT ───────────────────────────────────
+            for fname in targets["dre"][:2]:
+                try:
+                    with z.open(fname) as f:
+                        reader = csv_mod.DictReader(
+                            io.TextIOWrapper(f, encoding='latin-1'), delimiter=';'
+                        )
+                        for row in reader:
+                            cd = row.get("CD_CVM","").strip()
+                            ds = row.get("DS_CONTA","").strip().upper()
+                            cd_conta = row.get("CD_CONTA","").strip()
+                            vl = row.get("VL_CONTA","0").replace(".","").replace(",",".")
+                            ordem = row.get("ORDEM_EXERC","").strip()
+                            if ordem.upper() == "PENÚLTIMO": continue
+                            if not cd: continue
+                            if cd not in empresa_data: empresa_data[cd] = {}
+                            try: vl = float(vl) * 1000
+                            except: vl = 0
+                            # Receita Líquida: conta 3.01
+                            if cd_conta.startswith("3.01"):
+                                if abs(vl) > abs(empresa_data[cd].get("receita",0)):
+                                    empresa_data[cd]["receita"] = vl
+                            # EBIT: conta 3.05
+                            if cd_conta.startswith("3.05"):
+                                if abs(vl) > abs(empresa_data[cd].get("ebit",0)):
+                                    empresa_data[cd]["ebit"] = vl
+                            # Lucro Líquido: conta 3.11
+                            if cd_conta.startswith("3.11"):
+                                if abs(vl) > abs(empresa_data[cd].get("lucro_liq",0)):
+                                    empresa_data[cd]["lucro_liq"] = vl
+                except Exception:
+                    continue
+
+            # ── BPP: Dívida Bruta ─────────────────────────────────────
+            for fname in targets["bpp"][:2]:
+                try:
+                    with z.open(fname) as f:
+                        reader = csv_mod.DictReader(
+                            io.TextIOWrapper(f, encoding='latin-1'), delimiter=';'
+                        )
+                        for row in reader:
+                            cd = row.get("CD_CVM","").strip()
+                            cd_conta = row.get("CD_CONTA","").strip()
+                            vl = row.get("VL_CONTA","0").replace(".","").replace(",",".")
+                            ordem = row.get("ORDEM_EXERC","").strip()
+                            if ordem.upper() == "PENÚLTIMO": continue
+                            if not cd: continue
+                            if cd not in empresa_data: empresa_data[cd] = {}
+                            try: vl = float(vl) * 1000
+                            except: vl = 0
+                            # Empréstimos e Financiamentos CP: 2.01.04, LP: 2.02.01
+                            if cd_conta in ("2.01.04","2.02.01"):
+                                empresa_data[cd]["divida_bruta"] =                                     empresa_data[cd].get("divida_bruta",0) + abs(vl)
+                except Exception:
+                    continue
+
+        result = empresa_data
+    except Exception:
+        pass
+
+    _cvm_cache[cache_key] = result
+    return result
+
+def _get_acoes_e_preco(ticker: str) -> dict:
+    """
+    Busca número de ações e preço atual via Yahoo Finance (fallback rápido).
+    Esses dados a CVM não fornece de forma fácil em tempo real.
+    """
+    info = {}
+    if not YF_SUPPORT:
+        return info
+    try:
+        yt = ticker + ".SA" if not ticker.endswith(".SA") else ticker
+        t = yf.Ticker(yt)
+        i = t.info or {}
+        info["preco_atual"]   = i.get("currentPrice") or i.get("regularMarketPrice") or 0
+        info["acoes"]         = i.get("sharesOutstanding") or 0
+        info["nome"]          = i.get("longName") or i.get("shortName") or ticker
+        info["setor"]         = i.get("sector") or ""
+        info["dy"]            = round((i.get("dividendYield") or 0)*100, 1)
+        info["roe"]           = round((i.get("returnOnEquity") or 0)*100, 1)
+        info["pl"]            = round(i.get("trailingPE") or 0, 1)
+        info["pvp"]           = round(i.get("priceToBook") or 0, 2)
+        info["caixa"]         = i.get("totalCash") or 0
+        # Se CVM não tiver FCO, usa yfinance como fallback
+        info["fco_yf"]        = i.get("operatingCashflow") or 0
+        info["capex_yf"]      = i.get("capitalExpenditures") or 0
+        info["receita_yf"]    = i.get("totalRevenue") or 0
+        info["ebitda_yf"]     = i.get("ebitda") or 0
+        info["lucro_yf"]      = i.get("netIncomeToCommon") or 0
+        info["crescimento"]   = abs(i.get("earningsGrowth") or i.get("revenueGrowth") or 0.08)
+    except Exception:
+        pass
+    return info
+
+def buscar_proventos_carteira(portfolio: list) -> list:
+    """
+    Busca proventos anunciados para os ativos da carteira via yfinance.
+    Retorna lista de proventos com ticker, valor, datas e tipo.
+    """
+    if not YF_SUPPORT:
+        return []
+    
+    proventos = []
+    hoje = __import__("datetime").date.today()
+    
+    for ativo in portfolio:
+        ticker = ativo.get("ticker", "")
+        if not ticker: continue
+        try:
+            yt = ticker + ".SA"
+            t = yf.Ticker(yt)
+            # Busca histórico de dividendos
+            divs = t.dividends
+            if divs is None or len(divs) == 0:
+                continue
+            # Pega os últimos 12 meses de dividendos como referência
+            # e o próximo dividendo se disponível
+            info = t.info or {}
+            prox_div_data = info.get("exDividendDate")
+            prox_div_valor = info.get("dividendRate", 0)
+            
+            if prox_div_data and prox_div_valor:
+                import datetime
+                try:
+                    data_ex = datetime.date.fromtimestamp(prox_div_data)
+                    if data_ex >= hoje:
+                        tipo = "JCP" if ticker.startswith(("BBAS","ITUB","BBDC","BRAD","SANB")) else "Dividendo"
+                        if ticker.endswith("11"): tipo = "Rendimento"
+                        proventos.append({
+                            "ticker": ticker,
+                            "valor": round(prox_div_valor / 4, 4),  # trimestraliza o valor anual
+                            "dataCom": data_ex.strftime("%d/%m/%Y"),
+                            "dataPagamento": data_ex.strftime("%d/%m/%Y"),
+                            "tipo": tipo,
+                            "qtd": ativo.get("qtd", 0),
+                            "totalReceber": round((prox_div_valor / 4) * ativo.get("qtd", 0), 2),
+                            "dy12m": round((info.get("dividendYield") or 0) * 100, 2),
+                        })
+                except Exception:
+                    pass
+        except Exception:
+            continue
+    
+    return sorted(proventos, key=lambda x: x.get("dataCom", "9999"))
+
+def get_top30_excluindo_carteira(portfolio: list) -> list:
+    tickers_carteira = {a.get("ticker","").upper() for a in portfolio}
+    return [t for t in IBOV_TOP30 if t not in tickers_carteira][:30]
 
 def analisar_fcd(ticker: str) -> dict:
     """
@@ -1277,3 +879,43 @@ def analisar_fcd(ticker: str) -> dict:
         }
     })
     return result
+
+def _processar_negocios(posicoes, payload, portfolio=None):
+    """
+    Calcula posições por ticker/ano. Na primeira vez que um ticker
+    aparece num ano, a posição é SEMEADA com o que já está cadastrado
+    em 'Meus Ativos' (quantidade e PM atuais) — depois disso, as
+    compras/vendas das notas vão ajustando qtd e PM ponderado.
+    """
+    for neg in payload.get("negocios_confirmados", []):
+        ticker = neg.get("ticker","")
+        ano = payload.get("data_pregao","")[-4:]
+        if not ticker or not ano: continue
+        key = f"{ticker}_{ano}"
+        if key not in posicoes:
+            ativo = next((a for a in (portfolio or []) if a.get("ticker")==ticker), None)
+            if ativo and ativo.get("qtd",0) > 0:
+                qtd0=ativo["qtd"]; pm0=ativo.get("preco",0)
+                posicoes[key]={"ticker":ticker,"ano":ano,"qtd":qtd0,
+                               "custo_total":round(qtd0*pm0,2),"pm":pm0,"vendas":[]}
+            else:
+                posicoes[key]={"ticker":ticker,"ano":ano,"qtd":0,"custo_total":0.0,"pm":0.0,"vendas":[]}
+        pos = posicoes[key]
+        if neg["cv"]=="C":
+            pos["custo_total"]=round(pos["custo_total"]+neg["custo_total"],2)
+            pos["qtd"]+=neg["qtd"]
+            pos["pm"]=round(pos["custo_total"]/pos["qtd"],4) if pos["qtd"] else 0
+        elif neg["cv"]=="V":
+            custo=round(pos["pm"]*neg["qtd"],2)
+            lucro=round(neg["valor_operacao"]-custo-neg.get("taxas_prop",0),2)
+            pos["custo_total"]=round(pos["custo_total"]-custo,2)
+            pos["qtd"]=max(0,pos["qtd"]-neg["qtd"])
+            pos["pm"]=round(pos["custo_total"]/pos["qtd"],4) if pos["qtd"] else 0
+            pos["vendas"].append({"data":payload.get("data_pregao"),"qtd":neg["qtd"],"preco_venda":neg["preco"],"valor_venda":neg["valor_operacao"],"custo":custo,"lucro":lucro,"day_trade":neg.get("day_trade",False)})
+
+def _recalcular_ano(ir_data, portfolio, ano):
+    """Remove e recalcula todas as posições de um ano a partir do zero."""
+    ir_data["posicoes"] = {k:v for k,v in ir_data["posicoes"].items() if not k.endswith(f"_{ano}")}
+    for n in ir_data["notas"]:
+        if n.get("data_pregao","")[-4:] == ano:
+            _processar_negocios(ir_data["posicoes"], n, portfolio)
