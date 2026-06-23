@@ -173,7 +173,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
 
 /* ── MOBILE PWA ─────────────────────────────────────────── */
 @media(max-width:768px){
-  .sidebar{transform:translateX(-100%);transition:transform .28s cubic-bezier(.4,0,.2,1);z-index:200;}
+  .sidebar{transform:translateX(-100%);transition:transform .28s cubic-bezier(.4,0,.2,1);z-index:200;touch-action:pan-y;overscroll-behavior:contain;}
   .sidebar.open{transform:translateX(0);}
   .sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:199;}
   .sidebar-overlay.show{display:block;}
@@ -281,11 +281,18 @@ window.__PORTFEX__ = {
     </button>
   </div>
 </aside>
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
 <header class="topbar">
-  <div class="page-title" id="pageTitle">Dashboard</div>
+  <div style="display:flex;align-items:center;gap:.65rem">
+    <button class="hamburger" id="hamburger" onclick="toggleSidebar()" aria-label="Menu">
+      <span></span><span></span><span></span>
+    </button>
+    <div class="page-title" id="pageTitle">Dashboard</div>
+  </div>
   <div class="topbar-right">
-    <div class="live-badge"><div class="live-pulse"></div>Cotações ao Vivo</div>
-    <button class="btn-refresh" id="updateBtn" onclick="updateQuotes()">↻ Atualizar</button>
+    <div class="live-badge" id="liveBadge" style="display:none"><div class="live-pulse"></div><span>Ao Vivo</span></div>
+    <button class="btn-refresh" id="updateBtn" onclick="updateQuotes()">↻</button>
+    <div class="user-badge" id="userBadge"></div>
   </div>
 </header>
 <div class="toast" id="toast"><span class="toast-dot" id="toastDot"></span><span id="toastMsg"></span></div>
