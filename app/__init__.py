@@ -3,6 +3,9 @@ Portfex Web — Backend Flask
 Multi-usuário, Supabase Auth + PostgreSQL, Kiwify para pagamentos
 """
 import os, json, re, io, secrets, time
+import time as _time
+_fcd_cache = {}
+FCD_CACHE_TTL = 3600
 from datetime import datetime, timedelta
 from functools import wraps
 from flask import Flask, request, jsonify, render_template, redirect, Response
@@ -392,10 +395,24 @@ def api_analisar_fcd():
     if not ticker:
         return jsonify({'ok': False, 'erro': 'ticker obrigatório', 'ticker': ''})
     try:
+        # Verifica cache
+        now = _time.time()
+        if ticker in _fcd_cache:
+            resultado, ts = _fcd_cache[ticker]
+            if now - ts < FCD_CACHE_TTL:
+                return jsonify(resultado)
+
         result = analisar_fcd(ticker)
         if 'ticker' not in result: result['ticker'] = ticker
+
+        # Salva no cache apenas se obteve dados
+        if result.get('ok') or result.get('dados'):
+            _fcd_cache[ticker] = (result, now)
+
         return jsonify(result)
     except Exception as e:
+        import traceback
+        print("FCD error for "+ticker+": "+str(e))
         return jsonify({'ok': False, 'erro': str(e), 'ticker': ticker})
 
 # ══════════════════════════════════════════════════════════════════

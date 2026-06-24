@@ -574,45 +574,39 @@ def _baixar_cvm_itr(ano: int) -> dict:
 
 def _get_acoes_e_preco(ticker: str) -> dict:
     """
-    Busca dados financeiros via Yahoo Finance com timeout adequado para servidor.
+    Busca dados financeiros.
+    Tenta yfinance com timeout de 20s para não travar o servidor.
     """
     info = {}
     if not YF_SUPPORT:
         return info
     try:
-        import threading
-        result = {}
-        error = []
-
-        def fetch():
-            try:
-                yt = ticker + ".SA" if not ticker.endswith(".SA") else ticker
-                t = yf.Ticker(yt)
-                i = t.info or {}
-                result["preco_atual"]  = i.get("currentPrice") or i.get("regularMarketPrice") or 0
-                result["acoes"]        = i.get("sharesOutstanding") or 0
-                result["nome"]         = i.get("longName") or i.get("shortName") or ticker
-                result["setor"]        = i.get("sector") or ""
-                result["dy"]           = round((i.get("dividendYield") or 0)*100, 1)
-                result["roe"]          = round((i.get("returnOnEquity") or 0)*100, 1)
-                result["pl"]           = round(i.get("trailingPE") or 0, 1)
-                result["pvp"]          = round(i.get("priceToBook") or 0, 2)
-                result["caixa"]        = i.get("totalCash") or 0
-                result["fco_yf"]       = i.get("operatingCashflow") or 0
-                result["capex_yf"]     = i.get("capitalExpenditures") or 0
-                result["receita_yf"]   = i.get("totalRevenue") or 0
-                result["ebitda_yf"]    = i.get("ebitda") or 0
-                result["lucro_yf"]     = i.get("netIncomeToCommon") or 0
-                result["crescimento"]  = abs(i.get("earningsGrowth") or i.get("revenueGrowth") or 0.08)
-            except Exception as e:
-                error.append(str(e))
-
-        t = threading.Thread(target=fetch)
-        t.start()
-        t.join(timeout=25)  # 25s timeout - prevents hanging on Render
-
-        if result:
-            info = result
+        import socket
+        # Set socket timeout globally for this call
+        old_timeout = socket.getdefaulttimeout()
+        socket.setdefaulttimeout(20)
+        try:
+            yt = ticker + ".SA" if not ticker.endswith(".SA") else ticker
+            t = yf.Ticker(yt)
+            i = t.info or {}
+            if i.get("currentPrice") or i.get("regularMarketPrice"):
+                info["preco_atual"]  = i.get("currentPrice") or i.get("regularMarketPrice") or 0
+                info["acoes"]        = i.get("sharesOutstanding") or 0
+                info["nome"]         = i.get("longName") or i.get("shortName") or ticker
+                info["setor"]        = i.get("sector") or ""
+                info["dy"]           = round((i.get("dividendYield") or 0)*100, 1)
+                info["roe"]          = round((i.get("returnOnEquity") or 0)*100, 1)
+                info["pl"]           = round(i.get("trailingPE") or 0, 1)
+                info["pvp"]          = round(i.get("priceToBook") or 0, 2)
+                info["caixa"]        = i.get("totalCash") or 0
+                info["fco_yf"]       = i.get("operatingCashflow") or 0
+                info["capex_yf"]     = i.get("capitalExpenditures") or 0
+                info["receita_yf"]   = i.get("totalRevenue") or 0
+                info["ebitda_yf"]    = i.get("ebitda") or 0
+                info["lucro_yf"]     = i.get("netIncomeToCommon") or 0
+                info["crescimento"]  = abs(i.get("earningsGrowth") or i.get("revenueGrowth") or 0.08)
+        finally:
+            socket.setdefaulttimeout(old_timeout)
     except Exception:
         pass
     return info
