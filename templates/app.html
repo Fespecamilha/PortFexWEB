@@ -555,6 +555,7 @@ window.__PORTFEX__ = {
 </main>
 
 <script>
+{% raw %}
 const API = '';
 let portfolio=[], metas={}, aportes=[], charts={}, editIndex=-1, editAporteIndex=-1, saveTimer=null;
 let aporteFilterType='', aporteSearchText='';
@@ -1895,192 +1896,159 @@ function renderFCDResultados() {
   const resultados = Object.values(fcdResultados);
   if (!resultados.length) return;
 
-  const comDados  = resultados.filter(r => r.ok && r.consenso?.metodos_validos > 0);
-  const semDados  = resultados.filter(r => !r.ok || !r.consenso?.metodos_validos);
-  const meusTick  = new Set(portfolio.map(a=>a.ticker));
+  const comDados = resultados.filter(r => r.ok && r.consenso && r.consenso.metodos_validos > 0);
+  const semDados = resultados.filter(r => !r.ok || !r.consenso || !r.consenso.metodos_validos);
+  const meusTick = new Set(portfolio.map(a=>a.ticker));
 
-  // Ordena por desconto (maiores descontos primeiro)
-  comDados.sort((a,b) => (b.consenso?.desconto||0) - (a.consenso?.desconto||0));
+  comDados.sort((a,b) => (b.consenso.desconto||0) - (a.consenso.desconto||0));
 
-  const corDesc = d => d>=20?'var(--green)':d>=5?'var(--gold)':d>=-10?'var(--text2)':'var(--red)';
-  const corPar  = {green:'var(--green)',gold:'var(--gold)',red:'var(--red)',text2:'var(--text2)'};
-  const fmtM    = v => Math.abs(v)>=1e9?`R$ ${(v/1e9).toFixed(1)}B`:Math.abs(v)>=1e6?`R$ ${(v/1e6).toFixed(0)}M`:fmtBRL(v);
-  const badge   = (v, label) => v > 0
-    ? `<span style="font-size:.72rem;font-weight:700;color:var(--gold)">${fmtBRL(v)}</span>`
-    : `<span style="font-size:.7rem;color:var(--text3)">—</span>`;
+  function corDesc(d){ return d>=20?'var(--green)':d>=5?'var(--gold)':d>=-10?'var(--text2)':'var(--red)'; }
+  function fmtM(v){ return Math.abs(v)>=1e9?'R$ '+(v/1e9).toFixed(1)+'B':Math.abs(v)>=1e6?'R$ '+(v/1e6).toFixed(0)+'M':fmtBRL(v); }
+  function badgeVal(v){ return v>0 ? '<span style="font-size:.72rem;font-weight:700;color:var(--gold)">'+fmtBRL(v)+'</span>' : '<span style="font-size:.7rem;color:var(--text3)">—</span>'; }
+  function warnSpan(msg){ return '<span style="font-size:.7rem;color:var(--text3)" title="'+(msg||'')+'">⚠</span>'; }
 
-  el.innerHTML = `
-  ${comDados.length ? `
-  <div class="section-header">
-    <div class="section-title">Ranking — Preço Justo vs Preço Atual</div>
-    <div style="font-size:.72rem;color:var(--text3)">${comDados.length} ativos com pelo menos 1 método válido</div>
-  </div>
-  <div style="overflow-x:auto;margin-bottom:1.5rem"><table>
-    <thead><tr>
-      <th>Ativo</th><th>Cart.?</th><th>Atual</th>
-      <th title="Fluxo de Caixa Descontado">FCD</th>
-      <th title="Graham Number √(22,5×LPA×VPA)">Graham</th>
-      <th title="EV/EBITDA × múltiplo do setor">EV/EBITDA</th>
-      <th>Faixa Justa</th><th>Desconto</th><th>P/L</th><th>DY</th><th>Parecer</th>
-    </tr></thead>
-    <tbody>${comDados.map(r => {
-      const d = r.dados||{}; const c = r.consenso||{};
-      const f = r.fcd||{}; const g = r.graham||{}; const e = r.ev_ebitda||{};
-      const p = r.parecer||{}; const naCar = meusTick.has(r.ticker);
-      const desc = c.desconto||0;
-      return `<tr style="cursor:pointer" onclick="mostrarDetalhe('${r.ticker}')">
-        <td>
-          <strong style="color:var(--gold)">${r.ticker}</strong>
-          <div style="font-size:.65rem;color:var(--text3)">${(d.nome||'').slice(0,22)}</div>
-        </td>
-        <td style="text-align:center">${naCar?'<span style="color:var(--green)">✓</span>':'<span style="color:var(--text3)">—</span>'}</td>
-        <td style="font-weight:600">${fmtBRL(d.preco_atual||0)}</td>
-        <td>${f.valido?badge(f.preco_justo):'<span style="font-size:.7rem;color:var(--text3)" title="'+f.motivo_invalido+'">⚠</span>'}</td>
-        <td>${g.valido?badge(g.preco_justo):'<span style="font-size:.7rem;color:var(--text3)" title="'+g.motivo_invalido+'">⚠</span>'}</td>
-        <td>${e.valido?badge(e.preco_justo):'<span style="font-size:.7rem;color:var(--text3)" title="'+e.motivo_invalido+'">⚠</span>'}</td>
-        <td>
-          ${c.metodos_validos>0?`
-          <span style="font-size:.76rem;color:var(--text3)">${fmtBRL(c.preco_min)}</span>
-          <span style="font-size:.7rem;color:var(--text3)"> – </span>
-          <span style="font-size:.76rem;color:var(--gold);font-weight:700">${fmtBRL(c.preco_max)}</span>
-          `:'—'}
-        </td>
-        <td style="font-weight:700;color:${corDesc(desc)}">${desc>=0?'+':''}${desc.toFixed(1)}%</td>
-        <td style="color:var(--text2);font-size:.8rem">${d.pl||'—'}</td>
-        <td style="color:var(--text2);font-size:.8rem">${d.dy?d.dy+'%':'—'}</td>
-        <td style="font-size:.72rem;color:${corPar[p.cor]||'var(--text2)'}">${p.texto?.split('—')[0]?.trim()||'—'}</td>
-      </tr>`;
-    }).join('')}</tbody>
-  </table></div>` : ''}
+  var html = '';
 
-  ${semDados.length ? `
-  <div style="font-size:.75rem;color:var(--text3);padding:.6rem;background:rgba(255,255,255,.02);border-radius:8px;margin-bottom:1rem">
-    ⚠ ${semDados.length} ativo(s) sem dados para calcular: ${semDados.map(r=>r.ticker+(r.erro?' ('+r.erro.slice(0,50)+')':'')).join(' · ')}
-  </div>` : ''}
+  if (comDados.length) {
+    html += '<div class="section-header"><div class="section-title">Ranking — Preço Justo vs Preço Atual</div>';
+    html += '<div style="font-size:.72rem;color:var(--text3)">'+comDados.length+' ativos com pelo menos 1 método válido</div></div>';
+    html += '<div style="overflow-x:auto;margin-bottom:1.5rem"><table><thead><tr>';
+    html += '<th>Ativo</th><th>Cart.?</th><th>Atual</th><th>FCD</th><th>Graham</th><th>EV/EBITDA</th><th>Faixa Justa</th><th>Desconto</th><th>P/L</th><th>DY</th><th>Parecer</th>';
+    html += '</tr></thead><tbody>';
 
-  <div id="fcdDetalheArea"></div>`;
+    comDados.forEach(function(r) {
+      var d = r.dados||{}, c = r.consenso||{}, f = r.fcd||{}, g = r.graham||{}, e = r.ev_ebitda||{}, p = r.parecer||{};
+      var naCar = meusTick.has(r.ticker);
+      var desc = c.desconto||0;
+      var faixaHtml = c.metodos_validos>0
+        ? '<span style="font-size:.76rem;color:var(--text3)">'+fmtBRL(c.preco_min||0)+'</span> – <span style="font-size:.76rem;color:var(--gold);font-weight:700">'+fmtBRL(c.preco_max||0)+'</span>'
+        : '—';
+      var corPar = {green:'var(--green)',gold:'var(--gold)',red:'var(--red)',text2:'var(--text2)'};
+      html += '<tr style="cursor:pointer" onclick="mostrarDetalhe(''+r.ticker+'')">';
+      html += '<td><strong style="color:var(--gold)">'+r.ticker+'</strong><div style="font-size:.65rem;color:var(--text3)">'+(d.nome||'').slice(0,22)+'</div></td>';
+      html += '<td style="text-align:center">'+(naCar?'<span style="color:var(--green)">✓</span>':'<span style="color:var(--text3)">—</span>')+'</td>';
+      html += '<td style="font-weight:600">'+fmtBRL(d.preco_atual||0)+'</td>';
+      html += '<td>'+(f.valido?badgeVal(f.preco_justo):warnSpan(f.motivo_invalido))+'</td>';
+      html += '<td>'+(g.valido?badgeVal(g.preco_justo):warnSpan(g.motivo_invalido))+'</td>';
+      html += '<td>'+(e.valido?badgeVal(e.preco_justo):warnSpan(e.motivo_invalido))+'</td>';
+      html += '<td>'+faixaHtml+'</td>';
+      html += '<td style="font-weight:700;color:'+corDesc(desc)+'">'+(desc>=0?'+':'')+desc.toFixed(1)+'%</td>';
+      html += '<td style="color:var(--text2);font-size:.8rem">'+(d.pl||'—')+'</td>';
+      html += '<td style="color:var(--text2);font-size:.8rem">'+(d.dy?d.dy+'%':'—')+'</td>';
+      html += '<td style="font-size:.72rem;color:'+(corPar[p.cor]||'var(--text2)')+'">'+((p.texto||'').split('—')[0]||'—').trim()+'</td>';
+      html += '</tr>';
+    });
+    html += '</tbody></table></div>';
+  }
+
+  if (semDados.length) {
+    html += '<div style="font-size:.75rem;color:var(--text3);padding:.6rem;background:rgba(255,255,255,.02);border-radius:8px;margin-bottom:1rem">';
+    html += '⚠ '+semDados.length+' ativo(s) sem dados: '+semDados.map(function(r){ return r.ticker+(r.erro?' ('+r.erro.slice(0,40)+')':''); }).join(' · ');
+    html += '</div>';
+  }
+
+  html += '<div id="fcdDetalheArea"></div>';
+  el.innerHTML = html;
 }
 
 function mostrarDetalhe(ticker) {
-  const r = fcdResultados[ticker];
+  var r = fcdResultados[ticker];
   if (!r) return;
-  const d = r.dados||{}; const c = r.consenso||{};
-  const f = r.fcd||{}; const g = r.graham||{}; const e = r.ev_ebitda||{};
-  const p = r.parecer||{};
-  const corP  = {green:'var(--green)',gold:'var(--gold)',red:'var(--red)',text2:'var(--text2)'};
-  const fmtM  = v => Math.abs(v)>=1e9?`R$ ${(v/1e9).toFixed(2)}B`:Math.abs(v)>=1e6?`R$ ${(v/1e6).toFixed(0)}M`:fmtBRL(v);
+  var d = r.dados||{}, c = r.consenso||{}, f = r.fcd||{}, g = r.graham||{}, e = r.ev_ebitda||{}, p = r.parecer||{};
+  var corP = {green:'var(--green)',gold:'var(--gold)',red:'var(--red)',text2:'var(--text2)'};
+  function fmtM(v){ return Math.abs(v)>=1e9?'R$ '+(v/1e9).toFixed(2)+'B':Math.abs(v)>=1e6?'R$ '+(v/1e6).toFixed(0)+'M':fmtBRL(v); }
 
-  const el = document.getElementById('fcdDetalheArea');
-  el.innerHTML = `
-  <div class="section-header">
-    <div class="section-title">Detalhe — ${ticker} · <span style="font-size:.85rem;font-weight:400;color:var(--text2)">${d.nome||''}</span></div>
-    <div style="display:flex;align-items:center;gap:.75rem">
-      <span style="font-size:.68rem;color:var(--text3)">Fonte: ${r.fonte||'—'}</span>
-      <button class="btn-ghost" onclick="document.getElementById('fcdDetalheArea').innerHTML='';document.getElementById('fcdDetalheArea').scrollIntoView()" style="padding:.3rem .7rem;font-size:.75rem">✕</button>
-    </div>
-  </div>
+  var el = document.getElementById('fcdDetalheArea');
+  if (!el) return;
 
-  <!-- CONSENSO -->
-  <div class="form-panel" style="margin-bottom:1.25rem;border-color:rgba(201,168,76,.3)">
-    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem">
-      <div>
-        <div style="font-size:.7rem;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.25rem">Faixa de Preço Justo Estimado</div>
-        <div style="font-size:1.6rem;font-weight:700;font-family:'Cormorant Garamond',serif">
-          ${c.metodos_validos>0 ? `${fmtBRL(c.preco_min)} <span style="font-size:1rem;color:var(--text3)">–</span> ${fmtBRL(c.preco_max)}` : '—'}
-        </div>
-        <div style="font-size:.78rem;color:var(--text2);margin-top:.25rem">
-          Médio: <b>${fmtBRL(c.preco_medio||0)}</b> · Preço atual: <b>${fmtBRL(d.preco_atual||0)}</b> ·
-          <span style="color:${(c.desconto||0)>=0?'var(--green)':'var(--red)'}">
-            ${(c.desconto||0)>=0?'+':''}${(c.desconto||0).toFixed(1)}% desconto
-          </span>
-          · ${c.metodos_validos||0} método(s) válido(s)
-        </div>
-      </div>
-      <div style="font-size:.85rem;color:${corP[p.cor]||'var(--text2)'}"><b>${p.texto||'—'}</b></div>
-    </div>
-  </div>
+  var desconto = c.desconto||0;
+  var html = '';
 
-  <!-- OS 3 MÉTODOS -->
-  <div class="charts-grid" style="margin-bottom:1.25rem">
+  // Header
+  html += '<div class="section-header">';
+  html += '<div class="section-title">Detalhe — '+ticker+' · <span style="font-size:.85rem;font-weight:400;color:var(--text2)">'+(d.nome||'')+'</span></div>';
+  html += '<div style="display:flex;align-items:center;gap:.75rem">';
+  html += '<span style="font-size:.68rem;color:var(--text3)">Fonte: '+(r.fonte||'—')+'</span>';
+  html += '<button class="btn-ghost" onclick="document.getElementById('fcdDetalheArea').innerHTML=''" style="padding:.3rem .7rem;font-size:.75rem">✕</button>';
+  html += '</div></div>';
 
-    <!-- FCD -->
-    <div class="chart-panel ${f.valido?'':'reb-card empty'}" style="border-left:3px solid ${f.valido?'var(--green)':'var(--text3)'}">
-      <div class="chart-label">Método 1 — FCD (Fluxo de Caixa Descontado)</div>
-      ${f.valido ? `
-      <div style="font-size:1.4rem;font-weight:700;color:var(--gold);margin:.4rem 0">${fmtBRL(f.preco_justo)}</div>
-      <div style="font-size:.75rem;color:var(--text2);line-height:1.7">
-        FC Base: ${fmtM(f.fc_base||0)} · WACC: ${f.wacc}%<br>
-        Cresc.: ${f.g_crescimento}% → ${f.g_terminal}% · ${f.anos} anos<br>
-        VP Fluxos: ${fmtM(f.vp_fluxos||0)} · VP Terminal: ${fmtM(f.vp_terminal||0)}<br>
-        Dívida Líq.: ${fmtM(f.divida_liquida||0)}
-      </div>` : `
-      <div style="color:var(--text3);font-size:.8rem;margin-top:.5rem">⚠ ${f.motivo_invalido||'Dados insuficientes'}</div>`}
-    </div>
+  // Consenso
+  var faixaStr = c.metodos_validos>0 ? fmtBRL(c.preco_min||0)+' – '+fmtBRL(c.preco_max||0) : '—';
+  html += '<div class="form-panel" style="margin-bottom:1.25rem;border-color:rgba(201,168,76,.3)">';
+  html += '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem">';
+  html += '<div><div style="font-size:.7rem;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.25rem">Faixa de Preço Justo Estimado</div>';
+  html += '<div style="font-size:1.6rem;font-weight:700">'+faixaStr+'</div>';
+  html += '<div style="font-size:.78rem;color:var(--text2);margin-top:.25rem">Médio: <b>'+fmtBRL(c.preco_medio||0)+'</b> · Atual: <b>'+fmtBRL(d.preco_atual||0)+'</b> · ';
+  html += '<span style="color:'+(desconto>=0?'var(--green)':'var(--red)')+'">'+( desconto>=0?'+':'')+desconto.toFixed(1)+'% desconto</span> · '+(c.metodos_validos||0)+' método(s)</div></div>';
+  html += '<div style="font-size:.85rem;color:'+(corP[p.cor]||'var(--text2)')+'"><b>'+(p.texto||'—')+'</b></div>';
+  html += '</div></div>';
 
-    <!-- GRAHAM -->
-    <div class="chart-panel ${g.valido?'':'reb-card empty'}" style="border-left:3px solid ${g.valido?'var(--blue,#4f8ef7)':'var(--text3)'}">
-      <div class="chart-label">Método 2 — Graham Number</div>
-      ${g.valido ? `
-      <div style="font-size:1.4rem;font-weight:700;color:var(--gold);margin:.4rem 0">${fmtBRL(g.preco_justo)}</div>
-      <div style="font-size:.75rem;color:var(--text2);line-height:1.7">
-        Fórmula: ${g.formula}<br>
-        LPA: ${fmtBRL(g.lpa||0)} · VPA: ${fmtBRL(g.vpa||0)}<br>
-        <span style="color:var(--text3);font-size:.7rem">Criado por Benjamin Graham (mentor de Buffett)</span>
-      </div>` : `
-      <div style="color:var(--text3);font-size:.8rem;margin-top:.5rem">⚠ ${g.motivo_invalido||'Dados insuficientes'}</div>`}
-    </div>
+  // Os 3 métodos
+  html += '<div class="charts-grid" style="margin-bottom:1.25rem">';
 
-    <!-- EV/EBITDA -->
-    <div class="chart-panel ${e.valido?'':'reb-card empty'}" style="border-left:3px solid ${e.valido?'var(--gold)':'var(--text3)'}">
-      <div class="chart-label">Método 3 — EV/EBITDA</div>
-      ${e.valido ? `
-      <div style="font-size:1.4rem;font-weight:700;color:var(--gold);margin:.4rem 0">${fmtBRL(e.preco_justo)}</div>
-      <div style="font-size:.75rem;color:var(--text2);line-height:1.7">
-        EBITDA: ${fmtM(e.ebitda||0)}<br>
-        Múltiplo setor (${e.setor_ref||'Geral'}): ${e.multiplo_setor}x<br>
-        EV Justo: ${fmtM(e.ev_justo||0)}
-      </div>` : `
-      <div style="color:var(--text3);font-size:.8rem;margin-top:.5rem">⚠ ${e.motivo_invalido||'Dados insuficientes'}</div>`}
-    </div>
-  </div>
+  // FCD
+  html += '<div class="chart-panel" style="border-left:3px solid '+(f.valido?'var(--green)':'var(--text3)')+'">'+
+    '<div class="chart-label">Método 1 — FCD</div>';
+  if (f.valido) {
+    html += '<div style="font-size:1.4rem;font-weight:700;color:var(--gold);margin:.4rem 0">'+fmtBRL(f.preco_justo||0)+'</div>';
+    html += '<div style="font-size:.75rem;color:var(--text2);line-height:1.7">FC Base: '+fmtM(f.fc_base||0)+' · WACC: '+f.wacc+'%<br>Cresc.: '+f.g_crescimento+'% → '+f.g_terminal+'%<br>VP Fluxos: '+fmtM(f.vp_fluxos||0)+' · VP Terminal: '+fmtM(f.vp_terminal||0)+'<br>Dívida: '+fmtM(f.divida_liquida||0)+'</div>';
+  } else {
+    html += '<div style="color:var(--text3);font-size:.8rem;margin-top:.5rem">⚠ '+(f.motivo_invalido||'Dados insuficientes')+'</div>';
+  }
+  html += '</div>';
 
-  <!-- DADOS FINANCEIROS -->
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.5rem">
-    <div class="chart-panel">
-      <div class="chart-label">Dados Financeiros</div>
-      ${[['Receita',fmtM(d.receita||0)],['EBIT',fmtM(d.ebit||0)],['EBITDA',fmtM(d.ebitda||0)],
-         ['Lucro Líquido',fmtM(d.lucro_liquido||0)],['FCO',fmtM(d.fco||0)],
-         ['FCL (FCO+Capex)',fmtM(d.fcl||0)],['Dívida Líquida',fmtM(d.divida_liquida||0)],
-         ['LPA',fmtBRL(d.lpa||0)],['VPA',fmtBRL(d.vpa||0)]
-        ].map(([k,v])=>`<div style="display:flex;justify-content:space-between;padding:.4rem 0;border-bottom:1px solid var(--border);font-size:.8rem"><span style="color:var(--text2)">${k}</span><b>${v}</b></div>`).join('')}
-    </div>
-    <div class="chart-panel">
-      <div class="chart-label">Indicadores de Mercado</div>
-      ${[['P/L',d.pl||'—'],['P/VP',d.pvp||'—'],['DY',d.dy?(d.dy+'%'):'—'],
-         ['ROE',d.roe?(d.roe+'%'):'—'],['Margem EBIT',d.margem_ebit?(d.margem_ebit+'%'):'—'],
-         ['Market Cap',fmtM(d.market_cap||0)]
-        ].map(([k,v])=>`<div style="display:flex;justify-content:space-between;padding:.4rem 0;border-bottom:1px solid var(--border);font-size:.8rem"><span style="color:var(--text2)">${k}</span><b>${v}</b></div>`).join('')}
-      <div style="margin-top:.75rem;padding:.5rem .75rem;background:rgba(201,168,76,.06);border-radius:6px;font-size:.73rem;color:var(--text3);line-height:1.6">
-        ⚠ Estimativas teóricas. Não é recomendação de compra ou venda.
-        Premissas podem não refletir o contexto atual da empresa.
-      </div>
-    </div>
-  </div>
+  // Graham
+  html += '<div class="chart-panel" style="border-left:3px solid '+(g.valido?'var(--gold)':'var(--text3)')+'">'+
+    '<div class="chart-label">Método 2 — Graham Number</div>';
+  if (g.valido) {
+    html += '<div style="font-size:1.4rem;font-weight:700;color:var(--gold);margin:.4rem 0">'+fmtBRL(g.preco_justo||0)+'</div>';
+    html += '<div style="font-size:.75rem;color:var(--text2);line-height:1.7">'+g.formula+'<br>LPA: '+fmtBRL(g.lpa||0)+' · VPA: '+fmtBRL(g.vpa||0)+'</div>';
+  } else {
+    html += '<div style="color:var(--text3);font-size:.8rem;margin-top:.5rem">⚠ '+(g.motivo_invalido||'Dados insuficientes')+'</div>';
+  }
+  html += '</div>';
 
-  ${(f.fluxos||[]).length ? `
-  <div class="chart-panel" style="margin-bottom:1.5rem">
-    <div class="chart-label">Projeção FCD — Fluxos de Caixa por Ano</div>
-    <div style="overflow-x:auto"><table>
-      <thead><tr><th>Ano</th><th>Taxa Cresc.</th><th>FC Projetado</th><th>VP (descontado a ${f.wacc}%)</th></tr></thead>
-      <tbody>${(f.fluxos||[]).map(fl=>`<tr>
-        <td>Ano ${fl.ano}</td>
-        <td style="color:var(--text3)">${fl.g}%</td>
-        <td>${fmtM(fl.fc)}</td>
-        <td style="color:var(--gold);font-weight:600">${fmtM(fl.vp)}</td>
-      </tr>`).join('')}</tbody>
-    </table></div>
-  </div>` : ''}`;
+  // EV/EBITDA
+  html += '<div class="chart-panel" style="border-left:3px solid '+(e.valido?'var(--gold)':'var(--text3)')+'">'+
+    '<div class="chart-label">Método 3 — EV/EBITDA</div>';
+  if (e.valido) {
+    html += '<div style="font-size:1.4rem;font-weight:700;color:var(--gold);margin:.4rem 0">'+fmtBRL(e.preco_justo||0)+'</div>';
+    html += '<div style="font-size:.75rem;color:var(--text2);line-height:1.7">EBITDA: '+fmtM(e.ebitda||0)+'<br>Múltiplo ('+( e.setor_ref||'Geral')+'): '+e.multiplo_setor+'x<br>EV Justo: '+fmtM(e.ev_justo||0)+'</div>';
+  } else {
+    html += '<div style="color:var(--text3);font-size:.8rem;margin-top:.5rem">⚠ '+(e.motivo_invalido||'Dados insuficientes')+'</div>';
+  }
+  html += '</div></div>';
 
+  // Dados financeiros
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.5rem">';
+  html += '<div class="chart-panel"><div class="chart-label">Dados Financeiros</div>';
+  var dadosFin = [['Receita',fmtM(d.receita||0)],['EBIT',fmtM(d.ebit||0)],['EBITDA',fmtM(d.ebitda||0)],
+    ['Lucro Líquido',fmtM(d.lucro_liquido||0)],['FCO',fmtM(d.fco||0)],['FCL',fmtM(d.fcl||0)],
+    ['Dívida Líquida',fmtM(d.divida_liquida||0)],['LPA',fmtBRL(d.lpa||0)],['VPA',fmtBRL(d.vpa||0)]];
+  dadosFin.forEach(function(row){
+    html += '<div style="display:flex;justify-content:space-between;padding:.4rem 0;border-bottom:1px solid var(--border);font-size:.8rem"><span style="color:var(--text2)">'+row[0]+'</span><b>'+row[1]+'</b></div>';
+  });
+  html += '</div>';
+
+  html += '<div class="chart-panel"><div class="chart-label">Indicadores de Mercado</div>';
+  var indicadores = [['P/L',d.pl||'—'],['P/VP',d.pvp||'—'],['DY',d.dy?(d.dy+'%'):'—'],
+    ['ROE',d.roe?(d.roe+'%'):'—'],['Margem EBIT',d.margem_ebit?(d.margem_ebit+'%'):'—'],['Market Cap',fmtM(d.market_cap||0)]];
+  indicadores.forEach(function(row){
+    html += '<div style="display:flex;justify-content:space-between;padding:.4rem 0;border-bottom:1px solid var(--border);font-size:.8rem"><span style="color:var(--text2)">'+row[0]+'</span><b>'+row[1]+'</b></div>';
+  });
+  html += '<div style="margin-top:.75rem;padding:.5rem;background:rgba(201,168,76,.06);border-radius:6px;font-size:.72rem;color:var(--text3)">⚠ Estimativas teóricas. Não é recomendação de investimento.</div>';
+  html += '</div></div>';
+
+  // Fluxos FCD
+  if (f.fluxos && f.fluxos.length) {
+    html += '<div class="chart-panel" style="margin-bottom:1.5rem"><div class="chart-label">Projeção FCD — Fluxos por Ano</div><div style="overflow-x:auto"><table><thead><tr><th>Ano</th><th>Cresc.</th><th>FC Projetado</th><th>VP Descontado</th></tr></thead><tbody>';
+    f.fluxos.forEach(function(fl){
+      html += '<tr><td>Ano '+fl.ano+'</td><td style="color:var(--text3)">'+fl.g+'%</td><td>'+fmtM(fl.fc)+'</td><td style="color:var(--gold);font-weight:600">'+fmtM(fl.vp)+'</td></tr>';
+    });
+    html += '</tbody></table></div></div>';
+  }
+
+  el.innerHTML = html;
   el.scrollIntoView({behavior:'smooth', block:'start'});
 }
 
@@ -2116,6 +2084,7 @@ if(_qs.get('ativado')==='1'){
 }
 
 init();
+{% endraw %}
 </script>
 </body>
 </html>
