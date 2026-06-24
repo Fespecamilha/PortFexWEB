@@ -1366,7 +1366,7 @@ function renderFCDResultados() {
         ? '<span style="font-size:.76rem;color:var(--text3)">'+fmtBRL(c.preco_min||0)+'</span> – <span style="font-size:.76rem;color:var(--gold);font-weight:700">'+fmtBRL(c.preco_max||0)+'</span>'
         : '—';
       var corPar = {green:'var(--green)',gold:'var(--gold)',red:'var(--red)',text2:'var(--text2)'};
-      html += '<tr style="cursor:pointer" onclick="mostrarDetalhe(&quot;'+r.ticker+'&quot;)">';
+      html += '<tr style="cursor:pointer" data-ticker="'+r.ticker+'" onclick="mostrarDetalhe(this.dataset.ticker)">';
       html += '<td><strong style="color:var(--gold)">'+r.ticker+'</strong><div style="font-size:.65rem;color:var(--text3)">'+(d.nome||'').slice(0,22)+'</div></td>';
       html += '<td style="text-align:center">'+(naCar?'<span style="color:var(--green)">✓</span>':'<span style="color:var(--text3)">—</span>')+'</td>';
       html += '<td style="font-weight:600">'+fmtBRL(d.preco_atual||0)+'</td>';
@@ -1397,105 +1397,145 @@ function mostrarDetalhe(ticker) {
   var r = fcdResultados[ticker];
   if (!r) return;
   var d = r.dados||{}, c = r.consenso||{}, f = r.fcd||{}, g = r.graham||{}, e = r.ev_ebitda||{}, p = r.parecer||{};
+
+  function fmtM(v) {
+    v = v||0;
+    return Math.abs(v)>=1e9 ? 'R$ '+(v/1e9).toFixed(2)+'B' :
+           Math.abs(v)>=1e6 ? 'R$ '+(v/1e6).toFixed(0)+'M' : fmtBRL(v);
+  }
   var corP = {green:'var(--green)',gold:'var(--gold)',red:'var(--red)',text2:'var(--text2)'};
-  function fmtM(v){ return Math.abs(v)>=1e9?'R$ '+(v/1e9).toFixed(2)+'B':Math.abs(v)>=1e6?'R$ '+(v/1e6).toFixed(0)+'M':fmtBRL(v); }
+  var desconto = c.desconto||0;
+  var faixaStr = c.metodos_validos>0 ? fmtBRL(c.preco_min||0)+' – '+fmtBRL(c.preco_max||0) : '—';
 
   var el = document.getElementById('fcdDetalheArea');
   if (!el) return;
 
-  var desconto = c.desconto||0;
-  var html = '';
+  // Build HTML using array join to avoid quote issues
+  var h = [];
 
   // Header
-  html += '<div class="section-header">';
-  html += '<div class="section-title">Detalhe — '+ticker+' · <span style="font-size:.85rem;font-weight:400;color:var(--text2)">'+(d.nome||'')+'</span></div>';
-  html += '<div style="display:flex;align-items:center;gap:.75rem">';
-  html += '<span style="font-size:.68rem;color:var(--text3)">Fonte: '+(r.fonte||'—')+'</span>';
-  html += '<button class="btn-ghost" onclick="document.getElementById('fcdDetalheArea').innerHTML=''" style="padding:.3rem .7rem;font-size:.75rem">✕</button>';
-  html += '</div></div>';
+  h.push('<div class="section-header">');
+  h.push('<div class="section-title">Detalhe — '+ticker+' <span style="font-size:.85rem;font-weight:400;color:var(--text2)">'+( d.nome||'')+'</span></div>');
+  h.push('<div style="display:flex;align-items:center;gap:.75rem">');
+  h.push('<span style="font-size:.68rem;color:var(--text3)">Fonte: '+(r.fonte||'—')+'</span>');
+  h.push('<button class="btn-ghost" id="btnFecharDetalhe" style="padding:.3rem .7rem;font-size:.75rem">✕</button>');
+  h.push('</div></div>');
 
   // Consenso
-  var faixaStr = c.metodos_validos>0 ? fmtBRL(c.preco_min||0)+' – '+fmtBRL(c.preco_max||0) : '—';
-  html += '<div class="form-panel" style="margin-bottom:1.25rem;border-color:rgba(201,168,76,.3)">';
-  html += '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem">';
-  html += '<div><div style="font-size:.7rem;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.25rem">Faixa de Preço Justo Estimado</div>';
-  html += '<div style="font-size:1.6rem;font-weight:700">'+faixaStr+'</div>';
-  html += '<div style="font-size:.78rem;color:var(--text2);margin-top:.25rem">Médio: <b>'+fmtBRL(c.preco_medio||0)+'</b> · Atual: <b>'+fmtBRL(d.preco_atual||0)+'</b> · ';
-  html += '<span style="color:'+(desconto>=0?'var(--green)':'var(--red)')+'">'+( desconto>=0?'+':'')+desconto.toFixed(1)+'% desconto</span> · '+(c.metodos_validos||0)+' método(s)</div></div>';
-  html += '<div style="font-size:.85rem;color:'+(corP[p.cor]||'var(--text2)')+'"><b>'+(p.texto||'—')+'</b></div>';
-  html += '</div></div>';
+  h.push('<div class="form-panel" style="margin-bottom:1.25rem;border-color:rgba(201,168,76,.3)">');
+  h.push('<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem">');
+  h.push('<div>');
+  h.push('<div style="font-size:.7rem;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.25rem">Faixa de Preço Justo</div>');
+  h.push('<div style="font-size:1.6rem;font-weight:700">'+faixaStr+'</div>');
+  h.push('<div style="font-size:.78rem;color:var(--text2);margin-top:.25rem">');
+  h.push('Médio: <b>'+fmtBRL(c.preco_medio||0)+'</b> · Atual: <b>'+fmtBRL(d.preco_atual||0)+'</b> · ');
+  h.push('<span style="color:'+(desconto>=0?'var(--green)':'var(--red)')+'">');
+  h.push((desconto>=0?'+':'')+desconto.toFixed(1)+'% desconto</span> · '+(c.metodos_validos||0)+' método(s)');
+  h.push('</div></div>');
+  h.push('<div style="font-size:.85rem;color:'+(corP[p.cor]||'var(--text2)')+'"><b>'+(p.texto||'—')+'</b></div>');
+  h.push('</div></div>');
 
-  // Os 3 métodos
-  html += '<div class="charts-grid" style="margin-bottom:1.25rem">';
+  // 3 Métodos
+  h.push('<div class="charts-grid" style="margin-bottom:1.25rem">');
 
   // FCD
-  html += '<div class="chart-panel" style="border-left:3px solid '+(f.valido?'var(--green)':'var(--text3)')+'">'+
-    '<div class="chart-label">Método 1 — FCD</div>';
+  h.push('<div class="chart-panel" style="border-left:3px solid '+(f.valido?'var(--green)':'var(--text3)')+'">');
+  h.push('<div class="chart-label">Método 1 — FCD</div>');
   if (f.valido) {
-    html += '<div style="font-size:1.4rem;font-weight:700;color:var(--gold);margin:.4rem 0">'+fmtBRL(f.preco_justo||0)+'</div>';
-    html += '<div style="font-size:.75rem;color:var(--text2);line-height:1.7">FC Base: '+fmtM(f.fc_base||0)+' · WACC: '+f.wacc+'%<br>Cresc.: '+f.g_crescimento+'% → '+f.g_terminal+'%<br>VP Fluxos: '+fmtM(f.vp_fluxos||0)+' · VP Terminal: '+fmtM(f.vp_terminal||0)+'<br>Dívida: '+fmtM(f.divida_liquida||0)+'</div>';
+    h.push('<div style="font-size:1.4rem;font-weight:700;color:var(--gold);margin:.4rem 0">'+fmtBRL(f.preco_justo||0)+'</div>');
+    h.push('<div style="font-size:.75rem;color:var(--text2);line-height:1.7">');
+    h.push('FC Base: '+fmtM(f.fc_base||0)+' · WACC: '+f.wacc+'%<br>');
+    h.push('Cresc.: '+f.g_crescimento+'% → '+f.g_terminal+'%<br>');
+    h.push('VP Fluxos: '+fmtM(f.vp_fluxos||0)+' · VP Terminal: '+fmtM(f.vp_terminal||0)+'<br>');
+    h.push('Dívida: '+fmtM(f.divida_liquida||0));
+    h.push('</div>');
   } else {
-    html += '<div style="color:var(--text3);font-size:.8rem;margin-top:.5rem">⚠ '+(f.motivo_invalido||'Dados insuficientes')+'</div>';
+    h.push('<div style="color:var(--text3);font-size:.8rem;margin-top:.5rem">⚠ '+(f.motivo_invalido||'Dados insuficientes')+'</div>');
   }
-  html += '</div>';
+  h.push('</div>');
 
   // Graham
-  html += '<div class="chart-panel" style="border-left:3px solid '+(g.valido?'var(--gold)':'var(--text3)')+'">'+
-    '<div class="chart-label">Método 2 — Graham Number</div>';
+  h.push('<div class="chart-panel" style="border-left:3px solid '+(g.valido?'var(--gold)':'var(--text3)')+'">');
+  h.push('<div class="chart-label">Método 2 — Graham Number</div>');
   if (g.valido) {
-    html += '<div style="font-size:1.4rem;font-weight:700;color:var(--gold);margin:.4rem 0">'+fmtBRL(g.preco_justo||0)+'</div>';
-    html += '<div style="font-size:.75rem;color:var(--text2);line-height:1.7">'+g.formula+'<br>LPA: '+fmtBRL(g.lpa||0)+' · VPA: '+fmtBRL(g.vpa||0)+'</div>';
+    h.push('<div style="font-size:1.4rem;font-weight:700;color:var(--gold);margin:.4rem 0">'+fmtBRL(g.preco_justo||0)+'</div>');
+    h.push('<div style="font-size:.75rem;color:var(--text2);line-height:1.7">');
+    h.push((g.formula||'')+'<br>LPA: '+fmtBRL(g.lpa||0)+' · VPA: '+fmtBRL(g.vpa||0));
+    h.push('</div>');
   } else {
-    html += '<div style="color:var(--text3);font-size:.8rem;margin-top:.5rem">⚠ '+(g.motivo_invalido||'Dados insuficientes')+'</div>';
+    h.push('<div style="color:var(--text3);font-size:.8rem;margin-top:.5rem">⚠ '+(g.motivo_invalido||'Dados insuficientes')+'</div>');
   }
-  html += '</div>';
+  h.push('</div>');
 
   // EV/EBITDA
-  html += '<div class="chart-panel" style="border-left:3px solid '+(e.valido?'var(--gold)':'var(--text3)')+'">'+
-    '<div class="chart-label">Método 3 — EV/EBITDA</div>';
+  h.push('<div class="chart-panel" style="border-left:3px solid '+(e.valido?'var(--gold)':'var(--text3)')+'">');
+  h.push('<div class="chart-label">Método 3 — EV/EBITDA</div>');
   if (e.valido) {
-    html += '<div style="font-size:1.4rem;font-weight:700;color:var(--gold);margin:.4rem 0">'+fmtBRL(e.preco_justo||0)+'</div>';
-    html += '<div style="font-size:.75rem;color:var(--text2);line-height:1.7">EBITDA: '+fmtM(e.ebitda||0)+'<br>Múltiplo ('+( e.setor_ref||'Geral')+'): '+e.multiplo_setor+'x<br>EV Justo: '+fmtM(e.ev_justo||0)+'</div>';
+    h.push('<div style="font-size:1.4rem;font-weight:700;color:var(--gold);margin:.4rem 0">'+fmtBRL(e.preco_justo||0)+'</div>');
+    h.push('<div style="font-size:.75rem;color:var(--text2);line-height:1.7">');
+    h.push('EBITDA: '+fmtM(e.ebitda||0)+'<br>');
+    h.push('Múltiplo ('+( e.setor_ref||'Geral')+'): '+e.multiplo_setor+'x<br>');
+    h.push('EV Justo: '+fmtM(e.ev_justo||0));
+    h.push('</div>');
   } else {
-    html += '<div style="color:var(--text3);font-size:.8rem;margin-top:.5rem">⚠ '+(e.motivo_invalido||'Dados insuficientes')+'</div>';
+    h.push('<div style="color:var(--text3);font-size:.8rem;margin-top:.5rem">⚠ '+(e.motivo_invalido||'Dados insuficientes')+'</div>');
   }
-  html += '</div></div>';
+  h.push('</div></div>');
 
   // Dados financeiros
-  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.5rem">';
-  html += '<div class="chart-panel"><div class="chart-label">Dados Financeiros</div>';
-  var dadosFin = [['Receita',fmtM(d.receita||0)],['EBIT',fmtM(d.ebit||0)],['EBITDA',fmtM(d.ebitda||0)],
-    ['Lucro Líquido',fmtM(d.lucro_liquido||0)],['FCO',fmtM(d.fco||0)],['FCL',fmtM(d.fcl||0)],
-    ['Dívida Líquida',fmtM(d.divida_liquida||0)],['LPA',fmtBRL(d.lpa||0)],['VPA',fmtBRL(d.vpa||0)}};
-  dadosFin.forEach(function(row){
-    html += '<div style="display:flex;justify-content:space-between;padding:.4rem 0;border-bottom:1px solid var(--border);font-size:.8rem"><span style="color:var(--text2)">'+row[0]+'</span><b>'+row[1]+'</b></div>';
+  h.push('<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.5rem">');
+  h.push('<div class="chart-panel"><div class="chart-label">Dados Financeiros</div>');
+  var dadosFin = [
+    ['Receita', fmtM(d.receita||0)], ['EBIT', fmtM(d.ebit||0)],
+    ['EBITDA', fmtM(d.ebitda||0)], ['Lucro Líquido', fmtM(d.lucro_liquido||0)],
+    ['FCO', fmtM(d.fco||0)], ['FCL', fmtM(d.fcl||0)],
+    ['Dívida Líquida', fmtM(d.divida_liquida||0)],
+    ['LPA', fmtBRL(d.lpa||0)], ['VPA', fmtBRL(d.vpa||0)]
+  ];
+  dadosFin.forEach(function(row) {
+    h.push('<div style="display:flex;justify-content:space-between;padding:.4rem 0;border-bottom:1px solid var(--border);font-size:.8rem">');
+    h.push('<span style="color:var(--text2)">'+row[0]+'</span><b>'+row[1]+'</b></div>');
   });
-  html += '</div>';
+  h.push('</div>');
 
-  html += '<div class="chart-panel"><div class="chart-label">Indicadores de Mercado</div>';
-  var indicadores = [['P/L',d.pl||'—'],['P/VP',d.pvp||'—'],['DY',d.dy?(d.dy+'%'):'—'],
-    ['ROE',d.roe?(d.roe+'%'):'—'],['Margem EBIT',d.margem_ebit?(d.margem_ebit+'%'):'—'],['Market Cap',fmtM(d.market_cap||0)}};
-  indicadores.forEach(function(row){
-    html += '<div style="display:flex;justify-content:space-between;padding:.4rem 0;border-bottom:1px solid var(--border);font-size:.8rem"><span style="color:var(--text2)">'+row[0]+'</span><b>'+row[1]+'</b></div>';
+  h.push('<div class="chart-panel"><div class="chart-label">Indicadores de Mercado</div>');
+  var indicadores = [
+    ['P/L', d.pl||'—'], ['P/VP', d.pvp||'—'],
+    ['DY', d.dy?(d.dy+'%'):'—'], ['ROE', d.roe?(d.roe+'%'):'—'],
+    ['Margem EBIT', d.margem_ebit?(d.margem_ebit+'%'):'—'],
+    ['Market Cap', fmtM(d.market_cap||0)]
+  ];
+  indicadores.forEach(function(row) {
+    h.push('<div style="display:flex;justify-content:space-between;padding:.4rem 0;border-bottom:1px solid var(--border);font-size:.8rem">');
+    h.push('<span style="color:var(--text2)">'+row[0]+'</span><b>'+row[1]+'</b></div>');
   });
-  html += '<div style="margin-top:.75rem;padding:.5rem;background:rgba(201,168,76,.06);border-radius:6px;font-size:.72rem;color:var(--text3)">⚠ Estimativas teóricas. Não é recomendação de investimento.</div>';
-  html += '</div></div>';
+  h.push('<div style="margin-top:.75rem;padding:.5rem;background:rgba(201,168,76,.06);border-radius:6px;font-size:.72rem;color:var(--text3)">');
+  h.push('⚠ Estimativas teóricas. Não é recomendação de investimento.</div>');
+  h.push('</div></div>');
 
   // Fluxos FCD
   if (f.fluxos && f.fluxos.length) {
-    html += '<div class="chart-panel" style="margin-bottom:1.5rem"><div class="chart-label">Projeção FCD — Fluxos por Ano</div><div style="overflow-x:auto"><table><thead><tr><th>Ano</th><th>Cresc.</th><th>FC Projetado</th><th>VP Descontado</th></tr></thead><tbody>';
-    f.fluxos.forEach(function(fl){
-      html += '<tr><td>Ano '+fl.ano+'</td><td style="color:var(--text3)">'+fl.g+'%</td><td>'+fmtM(fl.fc)+'</td><td style="color:var(--gold);font-weight:600">'+fmtM(fl.vp)+'</td></tr>';
+    h.push('<div class="chart-panel" style="margin-bottom:1.5rem">');
+    h.push('<div class="chart-label">Projeção FCD — Fluxos por Ano</div>');
+    h.push('<div style="overflow-x:auto"><table><thead><tr>');
+    h.push('<th>Ano</th><th>Cresc.</th><th>FC Projetado</th><th>VP Descontado</th>');
+    h.push('</tr></thead><tbody>');
+    f.fluxos.forEach(function(fl) {
+      h.push('<tr><td>Ano '+fl.ano+'</td><td style="color:var(--text3)">'+fl.g+'%</td>');
+      h.push('<td>'+fmtM(fl.fc)+'</td><td style="color:var(--gold);font-weight:600">'+fmtM(fl.vp)+'</td></tr>');
     });
-    html += '</tbody></table></div></div>';
+    h.push('</tbody></table></div></div>');
   }
 
-  el.innerHTML = html;
+  el.innerHTML = h.join('');
+
+  // Add close button event after rendering
+  var btnFechar = document.getElementById('btnFecharDetalhe');
+  if (btnFechar) btnFechar.onclick = function() { el.innerHTML = ''; };
+
   el.scrollIntoView({behavior:'smooth', block:'start'});
 }
 
-function showToast(msg,type='green'){const colors={green:'var(--green)',red:'var(--red)',gold:'var(--gold)'};document.getElementById('toastDot').style.background=colors[type]||colors.green;document.getElementById('toastMsg').textContent=msg;const t=document.getElementById('toast');t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3200);}
-// ── Mobile sidebar ────────────────────────────────────────────────
 function toggleSidebar(){
   const s=document.querySelector('.sidebar');
   const h=document.getElementById('hamburger');
