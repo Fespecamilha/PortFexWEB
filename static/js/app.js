@@ -390,7 +390,7 @@ setInterval(()=>{if(portfolio.some(a=>a.classe==='Ações'||a.classe==='FII'))up
 function exportCSV(){
   if(!portfolio.length){showToast('Nenhum ativo','gold');return;}
   const h='Ticker,Classe,Setor,Qtd,PrecoMedio,Cotacao,Data,Obs',rows=portfolio.map(a=>`${a.ticker},${a.classe},${a.setor},${a.qtd},${a.preco},${a.cotacao},${a.data||''},${a.obs||''}`);
-  const blob=new Blob({{h,...rows].join('\n')],{type:'text/csv'});
+  const blob=new Blob([[h,...rows].join('\n')],{type:'text/csv'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='carteira.csv';a.click();URL.revokeObjectURL(a.href);
   showToast('CSV exportado');
 }
@@ -1464,7 +1464,7 @@ function mostrarDetalhe(ticker) {
   // Dados financeiros
   html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.5rem">';
   html += '<div class="chart-panel"><div class="chart-label">Dados Financeiros</div>';
-  var dadosFin = {{'Receita',fmtM(d.receita||0)],['EBIT',fmtM(d.ebit||0)],['EBITDA',fmtM(d.ebitda||0)],
+  var dadosFin = [['Receita',fmtM(d.receita||0)],['EBIT',fmtM(d.ebit||0)],['EBITDA',fmtM(d.ebitda||0)],
     ['Lucro Líquido',fmtM(d.lucro_liquido||0)],['FCO',fmtM(d.fco||0)],['FCL',fmtM(d.fcl||0)],
     ['Dívida Líquida',fmtM(d.divida_liquida||0)],['LPA',fmtBRL(d.lpa||0)],['VPA',fmtBRL(d.vpa||0)}};
   dadosFin.forEach(function(row){
@@ -1473,7 +1473,7 @@ function mostrarDetalhe(ticker) {
   html += '</div>';
 
   html += '<div class="chart-panel"><div class="chart-label">Indicadores de Mercado</div>';
-  var indicadores = {{'P/L',d.pl||'—'],['P/VP',d.pvp||'—'],['DY',d.dy?(d.dy+'%'):'—'],
+  var indicadores = [['P/L',d.pl||'—'],['P/VP',d.pvp||'—'],['DY',d.dy?(d.dy+'%'):'—'],
     ['ROE',d.roe?(d.roe+'%'):'—'],['Margem EBIT',d.margem_ebit?(d.margem_ebit+'%'):'—'],['Market Cap',fmtM(d.market_cap||0)}};
   indicadores.forEach(function(row){
     html += '<div style="display:flex;justify-content:space-between;padding:.4rem 0;border-bottom:1px solid var(--border);font-size:.8rem"><span style="color:var(--text2)">'+row[0]+'</span><b>'+row[1]+'</b></div>';
