@@ -1366,7 +1366,7 @@ function renderFCDResultados() {
         ? '<span style="font-size:.76rem;color:var(--text3)">'+fmtBRL(c.preco_min||0)+'</span> – <span style="font-size:.76rem;color:var(--gold);font-weight:700">'+fmtBRL(c.preco_max||0)+'</span>'
         : '—';
       var corPar = {green:'var(--green)',gold:'var(--gold)',red:'var(--red)',text2:'var(--text2)'};
-      html += '<tr style="cursor:pointer" onclick="mostrarDetalhe(''+r.ticker+'')">';
+      html += '<tr style="cursor:pointer" onclick="mostrarDetalhe(&quot;'+r.ticker+'&quot;)">';
       html += '<td><strong style="color:var(--gold)">'+r.ticker+'</strong><div style="font-size:.65rem;color:var(--text3)">'+(d.nome||'').slice(0,22)+'</div></td>';
       html += '<td style="text-align:center">'+(naCar?'<span style="color:var(--green)">✓</span>':'<span style="color:var(--text3)">—</span>')+'</td>';
       html += '<td style="font-weight:600">'+fmtBRL(d.preco_atual||0)+'</td>';
