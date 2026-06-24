@@ -419,15 +419,13 @@ TICKER_CVM = {
 _cvm_cache = {}
 
 def fetch_quote(ticker):
-    url = f"https://brapi.dev/api/quote/{ticker}?token=demo"
+    url = f"https://brapi.dev/api/quote/{ticker}"
     try:
         req = urllib.request.Request(url, headers={"User-Agent": "Portfex/2.0"})
         with urllib.request.urlopen(req, timeout=5) as resp:
             return json.loads(resp.read().decode())
     except Exception as e:
         return {"error": str(e)}
-
-# ── Handler HTTP ─────────────────────────────────────────────────
 
 def _baixar_cvm_itr(ano: int) -> dict:
     """
@@ -574,17 +572,60 @@ def _baixar_cvm_itr(ano: int) -> dict:
 
 def _get_acoes_e_preco(ticker: str) -> dict:
     """
-    Busca dados financeiros.
-    Tenta yfinance com timeout de 20s para não travar o servidor.
+    Busca dados financeiros via brapi.dev (API REST brasileira, rápida e gratuita).
+    Fallback para yfinance se brapi falhar.
     """
     info = {}
+
+    # ── Tenta brapi.dev (primária) ───────────────────────────────
+    try:
+        url = (
+            f"https://brapi.dev/api/quote/{ticker}"
+            f"?modules=summaryProfile,defaultKeyStatistics,"
+            f"financialData,balanceSheetHistory,cashflowStatementHistory"
+        )
+        req = urllib.request.Request(url, headers={
+            "User-Agent": "Portfex/1.0",
+            "Accept": "application/json"
+        })
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            data = json.loads(resp.read().decode())
+
+        r = (data.get("results") or [{}])[0]
+        if r.get("regularMarketPrice"):
+            fp = r.get("financialData", {})
+            ks = r.get("defaultKeyStatistics", {})
+            sp = r.get("summaryProfile", {})
+
+            info["preco_atual"]  = r.get("regularMarketPrice", 0)
+            info["nome"]         = r.get("longName") or r.get("shortName") or ticker
+            info["setor"]        = sp.get("sector", "")
+            info["acoes"]        = ks.get("sharesOutstanding", {}).get("raw", 0)
+            info["dy"]           = round((r.get("dividendYield", 0) or 0) * 100, 1)
+            info["roe"]          = round((fp.get("returnOnEquity", {}).get("raw", 0) or 0) * 100, 1)
+            info["pl"]           = round(r.get("trailingPE", 0) or ks.get("trailingEps", {}).get("raw", 0) or 0, 1)
+            info["pvp"]          = round(ks.get("priceToBook", {}).get("raw", 0) or 0, 2)
+            info["caixa"]        = fp.get("totalCash", {}).get("raw", 0) or 0
+            info["fco_yf"]       = fp.get("operatingCashflow", {}).get("raw", 0) or 0
+            info["capex_yf"]     = fp.get("capitalExpenditures", {}).get("raw", 0) or 0
+            info["receita_yf"]   = fp.get("totalRevenue", {}).get("raw", 0) or 0
+            info["ebitda_yf"]    = fp.get("ebitda", {}).get("raw", 0) or 0
+            info["lucro_yf"]     = fp.get("netIncomeToCommon", {}).get("raw", 0) or 0
+            info["crescimento"]  = abs(
+                fp.get("earningsGrowth", {}).get("raw", 0) or
+                fp.get("revenueGrowth", {}).get("raw", 0) or 0.08
+            )
+            return info
+    except Exception:
+        pass
+
+    # ── Fallback: yfinance ────────────────────────────────────────
     if not YF_SUPPORT:
         return info
     try:
         import socket
-        # Set socket timeout globally for this call
-        old_timeout = socket.getdefaulttimeout()
-        socket.setdefaulttimeout(20)
+        old_to = socket.getdefaulttimeout()
+        socket.setdefaulttimeout(15)
         try:
             yt = ticker + ".SA" if not ticker.endswith(".SA") else ticker
             t = yf.Ticker(yt)
@@ -606,10 +647,11 @@ def _get_acoes_e_preco(ticker: str) -> dict:
                 info["lucro_yf"]     = i.get("netIncomeToCommon") or 0
                 info["crescimento"]  = abs(i.get("earningsGrowth") or i.get("revenueGrowth") or 0.08)
         finally:
-            socket.setdefaulttimeout(old_timeout)
+            socket.setdefaulttimeout(old_to)
     except Exception:
         pass
     return info
+
 
 def buscar_proventos_carteira(portfolio: list) -> list:
     """
