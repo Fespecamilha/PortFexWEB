@@ -295,6 +295,12 @@ window.__PORTFEX__ = {
     <div class="live-badge" id="liveBadge" style="display:none"><div class="live-pulse"></div><span>Ao Vivo</span></div>
     <button class="btn-refresh" id="updateBtn" onclick="updateQuotes()">↻</button>
     <div class="user-badge" id="userBadge"></div>
+    <button onclick="fazerLogout()" id="btnSairDesktop" title="Sair da conta"
+      style="display:none;align-items:center;gap:.35rem;padding:.35rem .75rem;border-radius:6px;border:1px solid rgba(224,92,92,0.25);background:transparent;color:#e05c5c;cursor:pointer;font-family:Outfit,sans-serif;font-size:.72rem;font-weight:500;transition:background .15s"
+      onmouseover="this.style.background='rgba(224,92,92,0.08)'" onmouseout="this.style.background='transparent'">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      Sair
+    </button>
   </div>
 </header>
 <div class="toast" id="toast"><span class="toast-dot" id="toastDot"></span><span id="toastMsg"></span></div>
@@ -596,18 +602,24 @@ async function init(){
 function _renderUserBadge(user){
   const el = document.getElementById('userBadge');
   const bar = document.getElementById('upgradePillBar');
-  if(el) el.innerHTML = `
-    <span>${(user.nome||user.email||'').split(' ')[0]}</span>
-    <span class="plano-pill ${user.pro?'pro':'gratis'}">${user.pro?'PRO':'GRÁTIS'}</span>`;
+  const btnSair = document.getElementById('btnSairDesktop');
+  if(el){
+    var nome = (user.nome||user.email||'').split(' ')[0];
+    var pill = user.pro ? 'pro' : 'gratis';
+    var label = user.pro ? 'PRO' : 'GRÁTIS';
+    el.innerHTML = '<span>' + nome + '</span> <span class="plano-pill ' + pill + '">' + label + '</span>';
+  }
   if(bar){
     if(user.pro){
       bar.innerHTML='<div style="font-size:.68rem;color:var(--green)">✓ Plano Pro ativo</div>';
     } else {
-      bar.innerHTML=`<button class="btn-upgrade" onclick="irParaUpgrade()" style="width:100%">⭐ Upgrade — R$29,90/mês</button>`;
+      bar.innerHTML='<button class="btn-upgrade" onclick="irParaUpgrade()" style="width:100%">⭐ Upgrade</button>';
     }
   }
   const liveBadge = document.getElementById('liveBadge');
   if(liveBadge) liveBadge.style.display='flex';
+  // Mostra botão Sair no desktop (topbar)
+  if(btnSair) btnSair.style.display='flex';
 }
 
 function _renderUpgradeBanner(total, limite){
@@ -617,8 +629,8 @@ function _renderUpgradeBanner(total, limite){
   if(old) old.remove();
   const div = document.createElement('div');
   div.id='upgradeBanner'; div.className='upgrade-banner';
-  div.innerHTML=`<p><strong>${total}/${limite} ativos</strong> usados no plano gratuito.${total>=limite?' <strong style="color:var(--red)">Limite atingido.</strong>':''}</p>
-    <button class="btn-upgrade" onclick="irParaUpgrade()">⭐ Fazer upgrade</button>`;
+  var limiteMsg = total>=limite ? ' <strong style="color:var(--red)">Limite atingido.</strong>' : '';
+  div.innerHTML = '<p><strong>' + total + '/' + limite + ' ativos</strong> usados no plano gratuito.' + limiteMsg + '</p><button class="btn-upgrade" onclick="irParaUpgrade()">⭐ Fazer upgrade</button>';
   page.insertBefore(div, page.firstChild);
 }
 
