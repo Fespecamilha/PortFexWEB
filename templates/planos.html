@@ -35,7 +35,7 @@ h1{font-family:'Syne',sans-serif;font-weight:800;font-size:clamp(1.9rem,6vw,2.8r
 .annual-box-txt{font-size:.82rem;color:var(--gray);}
 .annual-box-txt strong{color:var(--gold);}
 .back{display:block;text-align:center;font-size:.8rem;color:var(--gray2);text-decoration:none;margin-top:2rem;}
-@media(min-width:560px){.plans{flex-direction:row;}.plan{flex:1;}}
+@media(min-width:560px){.plans{flex-direction:row;}.plan{flex:1;]]
 </style>
 </head>
 <body>
@@ -61,7 +61,7 @@ h1{font-family:'Syne',sans-serif;font-weight:800;font-size:clamp(1.9rem,6vw,2.8r
   <div class="plan featured">
     <div class="plan-badge">Mais popular</div>
     <div class="plan-name">Pro Mensal</div>
-    <div class="plan-price"><sup>R$</sup>{{ preco_mensal|int }}<span style="font-size:1rem">,90</span></div>
+    <div class="plan-price"><sup>R$</sup>[[ preco_mensal|int ]]<span style="font-size:1rem">,90</span></div>
     <div class="plan-period">por mês · cancele quando quiser</div>
     <ul class="plan-features">
       <li>Ativos ilimitados</li>
@@ -71,14 +71,14 @@ h1{font-family:'Syne',sans-serif;font-weight:800;font-size:clamp(1.9rem,6vw,2.8r
       <li>Declaração de IR + PDF</li>
       <li>Importar nota Rico</li>
     </ul>
-    <a href="https://pay.kiwify.com.br/portfex-mensal" class="btn-gold" target="_blank">Assinar R${{ preco_mensal|int }},90/mês</a>
+    <a href="https://pay.kiwify.com.br/portfex-mensal" class="btn-gold" target="_blank">Assinar R$[[ preco_mensal|int ]],90/mês</a>
   </div>
 </div>
 
 <div class="annual-box">
   <div class="annual-box-txt">
     <strong>⭐ Plano Anual — Economize 44%</strong><br>
-    R${{ preco_anual|int }},00/ano · equivale a <strong>R$16,58/mês</strong>
+    R$[[ preco_anual|int ]],00/ano · equivale a <strong>R$16,58/mês</strong>
   </div>
   <a href="https://pay.kiwify.com.br/portfex-anual" class="btn-gold" style="padding:.6rem 1.2rem;font-size:.84rem;white-space:nowrap" target="_blank">Assinar anual</a>
 </div>

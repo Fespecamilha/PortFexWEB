@@ -23,6 +23,14 @@ from app.financial import (
 app = Flask(__name__, template_folder='../templates', static_folder='../static')
 app.secret_key = os.environ.get('SECRET_KEY', secrets.token_hex(32))
 
+# Use different Jinja2 delimiters to avoid conflicts with JavaScript template literals
+# {{ }} becomes [[ ]] for Jinja2, freeing {{ }} for JS
+from jinja2 import Environment
+app.jinja_env.variable_start_string = '[['
+app.jinja_env.variable_end_string = ']]'
+app.jinja_env.block_start_string = '[%'
+app.jinja_env.block_end_string = '%]'
+
 DATABASE_URL = os.environ.get('DATABASE_URL', '')
 JWT_SECRET   = os.environ.get('JWT_SECRET', secrets.token_hex(32))
 JWT_EXPIRE_H = 24 * 7  # 7 dias

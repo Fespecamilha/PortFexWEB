@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#080c14">
-<title>{% if modo == 'login' %}Entrar{% else %}Criar conta{% endif %} — Portfex</title>
+<title>[% if modo == 'login' %]Entrar[% else %]Criar conta[% endif %] — Portfex</title>
 <link rel="icon" href="/static/icons/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
@@ -37,16 +37,16 @@ input::placeholder{color:var(--gray2);}
 <div class="card">
   <div class="card-top"></div>
   <div class="logo">Portfex</div>
-  <div class="subtitle">{% if modo == 'login' %}Bem-vindo de volta{% else %}Crie sua conta gratuita{% endif %}</div>
+  <div class="subtitle">[% if modo == 'login' %]Bem-vindo de volta[% else %]Crie sua conta gratuita[% endif %]</div>
 
   <div class="error" id="errMsg"></div>
 
-  {% if modo == 'cadastro' %}
+  [% if modo == 'cadastro' %]
   <div class="form-group">
     <label>Seu nome</label>
     <input type="text" id="nome" placeholder="Como podemos te chamar?" autocomplete="name">
   </div>
-  {% endif %}
+  [% endif %]
 
   <div class="form-group">
     <label>Email</label>
@@ -56,25 +56,25 @@ input::placeholder{color:var(--gray2);}
   <div class="form-group">
     <label style="display:flex;justify-content:space-between;align-items:center">
       Senha
-      {% if modo == 'login' %}<a href="#" onclick="esqueceuSenha()" style="font-size:.72rem;color:var(--gold);text-decoration:none;font-weight:500;letter-spacing:0;text-transform:none">Esqueci a senha</a>{% endif %}
+      [% if modo == 'login' %]<a href="#" onclick="esqueceuSenha()" style="font-size:.72rem;color:var(--gold);text-decoration:none;font-weight:500;letter-spacing:0;text-transform:none">Esqueci a senha</a>[% endif %]
     </label>
     <input type="password" id="senha" placeholder="••••••••"
-           autocomplete="{% if modo == 'login' %}current-password{% else %}new-password{% endif %}">
+           autocomplete="[% if modo == 'login' %]current-password[% else %]new-password[% endif %]">
   </div>
 
   <button class="btn-submit" id="btnSubmit" onclick="submit()">
-    {% if modo == 'login' %}Entrar{% else %}Criar conta grátis{% endif %}
+    [% if modo == 'login' %]Entrar[% else %]Criar conta grátis[% endif %]
   </button>
 
-  <div class="divider">{% if modo == 'login' %}Não tem conta?{% else %}Já tem conta?{% endif %}</div>
+  <div class="divider">[% if modo == 'login' %]Não tem conta?[% else %]Já tem conta?[% endif %]</div>
   <div class="alt">
-    {% if modo == 'login' %}<a href="/cadastro">Criar conta gratuita</a>{% else %}<a href="/login">Entrar na minha conta</a>{% endif %}
+    [% if modo == 'login' %]<a href="/cadastro">Criar conta gratuita</a>[% else %]<a href="/login">Entrar na minha conta</a>[% endif %]
   </div>
 </div>
 <a href="/" class="back">← Voltar ao início</a>
 
 <script>
-const MODO = '{{ modo }}';
+const MODO = '[[ modo ]]';
 document.addEventListener('keydown', e => { if(e.key==='Enter') submit(); });
 
 async function submit(){
