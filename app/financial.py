@@ -6,11 +6,10 @@ import urllib.request, urllib.error, urllib.parse
 import json, re, io, zipfile, csv, time
 from datetime import datetime, date
 
-try:
-    import yfinance as yf
-    YF_SUPPORT = True
-except ImportError:
-    YF_SUPPORT = False
+# yfinance removed - too heavy for Render free tier (causes OOM kills)
+# Using brapi.dev REST API instead (fast, no installation, Brazilian stocks)
+YF_SUPPORT = False
+yf = None
 
 try:
     import pdfplumber
@@ -573,7 +572,7 @@ def _baixar_cvm_itr(ano: int) -> dict:
 def _get_acoes_e_preco(ticker: str) -> dict:
     """
     Busca dados financeiros via brapi.dev (API REST brasileira, rápida e gratuita).
-    Fallback para yfinance se brapi falhar.
+    Usa brapi.dev como fonte de dados.
     """
     info = {}
 
@@ -619,90 +618,58 @@ def _get_acoes_e_preco(ticker: str) -> dict:
     except Exception:
         pass
 
-    # ── Fallback: yfinance ────────────────────────────────────────
-    if not YF_SUPPORT:
-        return info
-    try:
-        import socket
-        old_to = socket.getdefaulttimeout()
-        socket.setdefaulttimeout(15)
-        try:
-            yt = ticker + ".SA" if not ticker.endswith(".SA") else ticker
-            t = yf.Ticker(yt)
-            i = t.info or {}
-            if i.get("currentPrice") or i.get("regularMarketPrice"):
-                info["preco_atual"]  = i.get("currentPrice") or i.get("regularMarketPrice") or 0
-                info["acoes"]        = i.get("sharesOutstanding") or 0
-                info["nome"]         = i.get("longName") or i.get("shortName") or ticker
-                info["setor"]        = i.get("sector") or ""
-                info["dy"]           = round((i.get("dividendYield") or 0)*100, 1)
-                info["roe"]          = round((i.get("returnOnEquity") or 0)*100, 1)
-                info["pl"]           = round(i.get("trailingPE") or 0, 1)
-                info["pvp"]          = round(i.get("priceToBook") or 0, 2)
-                info["caixa"]        = i.get("totalCash") or 0
-                info["fco_yf"]       = i.get("operatingCashflow") or 0
-                info["capex_yf"]     = i.get("capitalExpenditures") or 0
-                info["receita_yf"]   = i.get("totalRevenue") or 0
-                info["ebitda_yf"]    = i.get("ebitda") or 0
-                info["lucro_yf"]     = i.get("netIncomeToCommon") or 0
-                info["crescimento"]  = abs(i.get("earningsGrowth") or i.get("revenueGrowth") or 0.08)
-        finally:
-            socket.setdefaulttimeout(old_to)
-    except Exception:
-        pass
     return info
 
 
 def buscar_proventos_carteira(portfolio: list) -> list:
     """
-    Busca proventos anunciados para os ativos da carteira via yfinance.
-    Retorna lista de proventos com ticker, valor, datas e tipo.
+    Busca proventos via brapi.dev para os ativos da carteira.
     """
-    if not YF_SUPPORT:
-        return []
-    
     proventos = []
     hoje = __import__("datetime").date.today()
-    
+
     for ativo in portfolio:
         ticker = ativo.get("ticker", "")
         if not ticker: continue
         try:
-            yt = ticker + ".SA"
-            t = yf.Ticker(yt)
-            # Busca histórico de dividendos
-            divs = t.dividends
-            if divs is None or len(divs) == 0:
-                continue
-            # Pega os últimos 12 meses de dividendos como referência
-            # e o próximo dividendo se disponível
-            info = t.info or {}
-            prox_div_data = info.get("exDividendDate")
-            prox_div_valor = info.get("dividendRate", 0)
-            
-            if prox_div_data and prox_div_valor:
+            url = f"https://brapi.dev/api/quote/{ticker}?modules=summaryProfile,defaultKeyStatistics,financialData"
+            req = urllib.request.Request(url, headers={"User-Agent": "Portfex/1.0", "Accept": "application/json"})
+            with urllib.request.urlopen(req, timeout=8) as resp:
+                data = json.loads(resp.read().decode())
+
+            r = (data.get("results") or [{}])[0]
+            ks = r.get("defaultKeyStatistics", {})
+            fp = r.get("financialData", {})
+
+            ex_ts    = ks.get("exDividendDate", {})
+            ex_ts    = ex_ts.get("raw", 0) if isinstance(ex_ts, dict) else (ex_ts or 0)
+            div_rate = ks.get("dividendRate", {})
+            div_rate = div_rate.get("raw", 0) if isinstance(div_rate, dict) else (div_rate or 0)
+            dy       = ks.get("dividendYield", {})
+            dy       = dy.get("raw", 0) if isinstance(dy, dict) else (dy or 0)
+
+            if ex_ts and div_rate:
                 import datetime
-                try:
-                    data_ex = datetime.date.fromtimestamp(prox_div_data)
-                    if data_ex >= hoje:
-                        tipo = "JCP" if ticker.startswith(("BBAS","ITUB","BBDC","BRAD","SANB")) else "Dividendo"
-                        if ticker.endswith("11"): tipo = "Rendimento"
-                        proventos.append({
-                            "ticker": ticker,
-                            "valor": round(prox_div_valor / 4, 4),  # trimestraliza o valor anual
-                            "dataCom": data_ex.strftime("%d/%m/%Y"),
-                            "dataPagamento": data_ex.strftime("%d/%m/%Y"),
-                            "tipo": tipo,
-                            "qtd": ativo.get("qtd", 0),
-                            "totalReceber": round((prox_div_valor / 4) * ativo.get("qtd", 0), 2),
-                            "dy12m": round((info.get("dividendYield") or 0) * 100, 2),
-                        })
-                except Exception:
-                    pass
+                data_ex = datetime.date.fromtimestamp(ex_ts)
+                if data_ex >= hoje:
+                    tipo = "JCP" if ticker.startswith(("BBAS","ITUB","BBDC","BRAD","SANB")) else "Dividendo"
+                    if ticker.endswith("11"): tipo = "Rendimento"
+                    val_trimestral = round(div_rate / 4, 4)
+                    proventos.append({
+                        "ticker": ticker,
+                        "valor": val_trimestral,
+                        "dataCom": data_ex.strftime("%d/%m/%Y"),
+                        "dataPagamento": data_ex.strftime("%d/%m/%Y"),
+                        "tipo": tipo,
+                        "qtd": ativo.get("qtd", 0),
+                        "totalReceber": round(val_trimestral * ativo.get("qtd", 0), 2),
+                        "dy12m": round(dy * 100, 2),
+                    })
         except Exception:
             continue
-    
+
     return sorted(proventos, key=lambda x: x.get("dataCom", "9999"))
+
 
 def get_top30_excluindo_carteira(portfolio: list) -> list:
     tickers_carteira = {a.get("ticker","").upper() for a in portfolio}
@@ -715,7 +682,7 @@ def analisar_fcd(ticker: str) -> dict:
     2. Graham Number — piso conservador (√(22.5 × LPA × VPA))
     3. EV/EBITDA — múltiplo de mercado vs setor
     
-    Fontes: CVM (dados financeiros) + yfinance (preço, ações, indicadores)
+    Fontes: CVM (dados financeiros) + brapi.dev (preço, ações, indicadores)
     """
     result = {
         "ticker": ticker, "ok": False, "erro": "",
@@ -735,7 +702,7 @@ def analisar_fcd(ticker: str) -> dict:
             result["fonte"] = f"CVM ITR {ano}"
             break
 
-    # ── 2. Busca yfinance ─────────────────────────────────────────
+    # ── 2. Busca brapi.dev ────────────────────────────────────────
     yf_data = _get_acoes_e_preco(ticker)
 
     if not yf_data.get("preco_atual") and not cvm_data:
