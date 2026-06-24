@@ -54,7 +54,10 @@ input::placeholder{color:var(--gray2);}
   </div>
 
   <div class="form-group">
-    <label>Senha</label>
+    <label style="display:flex;justify-content:space-between;align-items:center">
+      Senha
+      {% if modo == 'login' %}<a href="#" onclick="esqueceuSenha()" style="font-size:.72rem;color:var(--gold);text-decoration:none;font-weight:500;letter-spacing:0;text-transform:none">Esqueci a senha</a>{% endif %}
+    </label>
     <input type="password" id="senha" placeholder="••••••••"
            autocomplete="{% if modo == 'login' %}current-password{% else %}new-password{% endif %}">
   </div>
@@ -118,6 +121,41 @@ async function submit(){
 function showErr(msg){
   const el = document.getElementById('errMsg');
   el.textContent = msg; el.style.display = 'block';
+}
+
+async function esqueceuSenha(){
+  const email = document.getElementById('email').value.trim();
+  const input = email || prompt('Digite seu email cadastrado:');
+  if(!input) return;
+  
+  const btn = document.getElementById('btnSubmit');
+  btn.disabled = true;
+  btn.textContent = 'Enviando...';
+  
+  try {
+    const resp = await fetch('/api/auth/esqueci-senha', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({email: input.trim().toLowerCase()})
+    });
+    const data = await resp.json();
+    if(data.ok){
+      document.getElementById('errMsg').style.display='none';
+      const msgEl = document.getElementById('errMsg');
+      msgEl.style.background='rgba(61,186,126,.08)';
+      msgEl.style.borderColor='rgba(61,186,126,.22)';
+      msgEl.style.color='#3dba7e';
+      msgEl.textContent='✓ Se este email estiver cadastrado, você receberá as instruções em breve.';
+      msgEl.style.display='block';
+    } else {
+      showErr(data.erro || 'Erro ao processar. Tente novamente.');
+    }
+  } catch(e) {
+    showErr('Erro de conexão. Tente novamente.');
+  }
+  
+  btn.disabled = false;
+  btn.textContent = 'Entrar';
 }
 </script>
 </body>

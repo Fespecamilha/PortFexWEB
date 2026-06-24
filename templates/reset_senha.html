@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#080c14">
+<title>Redefinir Senha — Portfex</title>
+<link rel="icon" href="/static/icons/icon-192.png">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{--bg:#080c14;--bg2:#0d1120;--gold:#c9a84c;--gold2:#e8c96a;--white:#f0ece4;--gray:#9a9690;--gray2:#5a5650;--green:#3dba7e;--red:#e05c5c;--border:rgba(255,255,255,0.07);--border2:rgba(201,168,76,0.2);}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--white);min-height:100svh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:1.5rem;}
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:18px;padding:2.25rem 1.75rem;width:100%;max-width:400px;}
+.card-top{height:3px;background:linear-gradient(90deg,transparent,var(--gold),transparent);margin:-2.25rem -1.75rem 2rem;border-radius:18px 18px 0 0;}
+.logo{font-family:'Syne',sans-serif;font-weight:800;font-size:1.75rem;background:linear-gradient(135deg,var(--gold),var(--gold2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;text-align:center;margin-bottom:.2rem;}
+.subtitle{text-align:center;font-size:.84rem;color:var(--gray);margin-bottom:1.75rem;}
+.form-group{margin-bottom:1rem;}
+label{display:block;font-size:.7rem;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--gray);margin-bottom:.4rem;}
+input{width:100%;padding:.65rem .85rem;border-radius:9px;border:1px solid var(--border);background:rgba(255,255,255,.04);color:var(--white);font-family:'Inter',sans-serif;font-size:.9rem;outline:none;transition:border-color .15s;}
+input:focus{border-color:rgba(201,168,76,.45);}
+input::placeholder{color:var(--gray2);}
+.msg{display:none;border-radius:8px;padding:.65rem .9rem;font-size:.82rem;margin-bottom:1rem;}
+.msg.erro{background:rgba(224,92,92,.08);border:1px solid rgba(224,92,92,.22);color:var(--red);}
+.msg.ok{background:rgba(61,186,126,.08);border:1px solid rgba(61,186,126,.22);color:var(--green);}
+.btn{width:100%;padding:.78rem;border-radius:9px;border:none;background:linear-gradient(135deg,var(--gold),var(--gold2));color:#080c14;font-family:'Inter',sans-serif;font-size:.95rem;font-weight:700;cursor:pointer;margin-top:.4rem;}
+.btn:disabled{opacity:.5;cursor:not-allowed;}
+.back{display:block;text-align:center;font-size:.78rem;color:var(--gray2);text-decoration:none;margin-top:1.5rem;}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="card-top"></div>
+  <div class="logo">Portfex</div>
+  <div class="subtitle">Crie uma nova senha</div>
+
+  <div class="msg erro" id="errMsg"></div>
+  <div class="msg ok" id="okMsg"></div>
+
+  <div class="form-group">
+    <label>Nova senha</label>
+    <input type="password" id="senha" placeholder="Mínimo 6 caracteres" autocomplete="new-password">
+  </div>
+  <div class="form-group">
+    <label>Confirmar nova senha</label>
+    <input type="password" id="senha2" placeholder="Repita a senha" autocomplete="new-password">
+  </div>
+
+  <button class="btn" id="btn" onclick="resetar()">Salvar nova senha</button>
+</div>
+<a href="/login" class="back">← Voltar ao login</a>
+
+<script>
+const TOKEN = '{{ token }}';
+document.addEventListener('keydown', e => { if(e.key==='Enter') resetar(); });
+
+async function resetar(){
+  const senha  = document.getElementById('senha').value;
+  const senha2 = document.getElementById('senha2').value;
+  const btn    = document.getElementById('btn');
+  const err    = document.getElementById('errMsg');
+  const ok     = document.getElementById('okMsg');
+  err.style.display='none'; ok.style.display='none';
+
+  if(senha.length < 6){ err.textContent='Senha deve ter ao menos 6 caracteres.'; err.style.display='block'; return; }
+  if(senha !== senha2){ err.textContent='As senhas não coincidem.'; err.style.display='block'; return; }
+
+  btn.disabled=true; btn.textContent='Salvando...';
+  try {
+    const resp = await fetch('/api/auth/reset-senha', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({token:TOKEN, senha})
+    });
+    const data = await resp.json();
+    if(data.ok){
+      ok.textContent='✓ Senha alterada com sucesso! Redirecionando...';
+      ok.style.display='block';
+      setTimeout(()=>{ window.location.href='/login'; }, 2000);
+    } else {
+      err.textContent = data.erro || 'Erro ao redefinir senha.';
+      err.style.display='block';
+      btn.disabled=false; btn.textContent='Salvar nova senha';
+    }
+  } catch(e) {
+    err.textContent='Erro de conexão.'; err.style.display='block';
+    btn.disabled=false; btn.textContent='Salvar nova senha';
+  }
+}
+</script>
+</body>
+</html>

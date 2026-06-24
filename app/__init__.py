@@ -244,6 +244,57 @@ def api_logout():
     resp.delete_cookie('pf_token')
     return resp
 
+@app.route('/api/auth/esqueci-senha', methods=['POST'])
+def api_esqueci_senha():
+    d = request.json or {}
+    email = (d.get('email') or '').strip().lower()
+    if not email:
+        return jsonify({'ok': False, 'erro': 'Email obrigatório'}), 400
+    try:
+        with get_db() as conn:
+            with conn.cursor() as cur:
+                cur.execute('SELECT id, name FROM users WHERE email=%s', (email,))
+                user = cur.fetchone()
+        # Sempre retorna ok para não revelar se email existe ou não
+        if user:
+            # Gera token de reset (válido por 1 hora)
+            token = make_token(user['id'], email)
+            reset_url = f"{APP_URL}/reset-senha?token={token}"
+            # TODO: enviar email com reset_url via Resend/SendGrid
+            # Por agora, loga no servidor para teste
+            print(f"[RESET] {email} → {reset_url}")
+        return jsonify({'ok': True})
+    except Exception as e:
+        return jsonify({'ok': True})  # Sempre ok por segurança
+
+@app.route('/reset-senha')
+def reset_senha_page():
+    token = request.args.get('token', '')
+    payload = decode_token(token)
+    if not payload:
+        return redirect('/login?erro=link-expirado')
+    return render_template('reset_senha.html', token=token)
+
+@app.route('/api/auth/reset-senha', methods=['POST'])
+def api_reset_senha():
+    d = request.json or {}
+    token = d.get('token', '')
+    nova_senha = d.get('senha', '')
+    if len(nova_senha) < 6:
+        return jsonify({'ok': False, 'erro': 'Senha deve ter ao menos 6 caracteres'}), 400
+    payload = decode_token(token)
+    if not payload:
+        return jsonify({'ok': False, 'erro': 'Link expirado ou inválido'}), 400
+    try:
+        with get_db() as conn:
+            with conn.cursor() as cur:
+                cur.execute('UPDATE users SET password=%s, updated_at=NOW() WHERE id=%s',
+                           (hash_pw(nova_senha), payload['user_id']))
+            conn.commit()
+        return jsonify({'ok': True})
+    except Exception as e:
+        return jsonify({'ok': False, 'erro': str(e)}), 500
+
 @app.route('/api/auth/me')
 @require_auth
 def api_me():
