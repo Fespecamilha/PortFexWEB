@@ -158,7 +158,7 @@ def save_portfolio(user_id, data):
 def index():
     u = current_user()
     if u: return redirect('/app')
-    return render_template('landing.html', preco_mensal=PRECO_MENSAL, preco_anual=PRECO_ANUAL)
+    return render_template('landing.html')
 
 @app.route('/login')
 def login_page():
@@ -179,9 +179,7 @@ def app_page():
 
 @app.route('/planos')
 def planos_page():
-    return render_template('planos.html',
-                           preco_mensal=PRECO_MENSAL,
-                           preco_anual=PRECO_ANUAL)
+    return render_template('planos.html')
 
 # ══════════════════════════════════════════════════════════════════
 # API — AUTH
@@ -278,7 +276,7 @@ def reset_senha_page():
     payload = decode_token(token)
     if not payload:
         return redirect('/login?erro=link-expirado')
-    return render_template('reset_senha.html', token=token)
+    return render_template('reset_senha.html')
 
 @app.route('/api/auth/reset-senha', methods=['POST'])
 def api_reset_senha():
