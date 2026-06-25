@@ -162,11 +162,11 @@ def index():
 
 @app.route('/login')
 def login_page():
-    return render_template('auth.html', modo='login')
+    return render_template('login.html')
 
 @app.route('/cadastro')
 def cadastro_page():
-    return render_template('auth.html', modo='cadastro')
+    return render_template('cadastro.html')
 
 @app.route('/app')
 def app_page():
