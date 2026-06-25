@@ -1132,15 +1132,7 @@ async function renderProventos() {
   const resp = await apiFetch('/api/proventos').then(r=>r.json()).catch(()=>({ok:false,proventos:[]}));
 
   if (!resp.ok && !resp.proventos) {
-    c.innerHTML = `
-    <div class="form-panel" style="text-align:center;padding:2rem">
-      <div style="font-size:2rem;margin-bottom:1rem">💰</div>
-      <div class="form-panel-title" style="margin-bottom:.75rem">Proventos Futuros</div>
-      <p style="font-size:.85rem;color:var(--text2);max-width:500px;margin:0 auto 1.5rem;line-height:1.7">
-        Instale o <strong>yfinance</strong> para buscar proventos automaticamente:
-      </p>
-      <code style="background:rgba(255,255,255,.05);padding:.6rem 1.2rem;border-radius:8px;font-size:.9rem;color:var(--gold)">pip install yfinance</code>
-    </div>`;
+    c.innerHTML = '<div class="form-panel" style="text-align:center;padding:2rem"><div style="font-size:2rem">💰</div><p style="color:var(--text2);margin-top:1rem">Nenhum provento encontrado para sua carteira no momento.</p></div>';
     return;
   }
 
@@ -1232,19 +1224,7 @@ async function renderFCD() {
   // Monta estrutura base sempre (mesmo com cache)
   const meta = await apiFetch('/api/analisar-carteira').then(r=>r.json()).catch(()=>({ok:false,yf_support:false}));
 
-  if (!meta.yf_support) {
-    c.innerHTML = `
-    <div class="form-panel" style="text-align:center;padding:2rem">
-      <div style="font-size:2rem;margin-bottom:1rem">🔬</div>
-      <div class="form-panel-title" style="margin-bottom:.75rem">Análise & Valuation — Configuração Necessária</div>
-      <p style="font-size:.85rem;color:var(--text2);max-width:500px;margin:0 auto 1.5rem;line-height:1.7">
-        Instale a biblioteca <strong>yfinance</strong> para usar esta funcionalidade:
-      </p>
-      <code style="background:rgba(255,255,255,.05);padding:.6rem 1.2rem;border-radius:8px;font-size:.9rem;color:var(--gold)">pip install yfinance</code>
-      <p style="font-size:.78rem;color:var(--text3);margin-top:1rem">Após instalar, reinicie o Portfex.</p>
-    </div>`;
-    return;
-  }
+  // brapi.dev is always available - no local install needed
 
   const carteira = meta.carteira || [];
   const top30    = meta.top30 || [];

@@ -38,7 +38,7 @@ APP_URL        = os.environ.get('APP_URL', 'http://localhost:5000')
 
 PLANO_GRATIS_LIMITE = 2
 PRECO_MENSAL        = 29.90
-PRECO_ANUAL         = 199.00
+PRECO_ANUAL         = 229.00
 
 # ── Database ─────────────────────────────────────────────────────
 def get_db():
