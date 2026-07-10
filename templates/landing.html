@@ -8,6 +8,7 @@
 <title>Portfex — Gestão de Investimentos</title>
 <link rel="manifest" href="/static/manifest.json">
 <link rel="icon" href="/static/icons/icon-192.png">
+<link rel="apple-touch-icon" href="/static/icons/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@800&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
@@ -204,13 +205,36 @@ footer a{color:var(--text2);text-decoration:none;}
 /* ── Reveal ──────────────────────────────────────────────── */
 .reveal{opacity:0;transform:translateY(20px);transition:opacity .55s ease,transform .55s ease;}
 .reveal.visible{opacity:1;transform:none;}
+
+[data-theme="dark"] .logo-dark-mark{display:block;}
+[data-theme="dark"] .logo-light-mark{display:none;}
+[data-theme="light"] .logo-dark-mark{display:none;}
+[data-theme="light"] .logo-light-mark{display:block;}
 </style>
 </head>
 <body>
 
 <!-- NAV -->
 <nav>
-  <div class="nav-logo">Portfex</div>
+  <div class="nav-logo" style="display:flex;align-items:center;gap:.5rem">
+    <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 100 100" style="flex-shrink:0">
+      <g class="logo-dark-mark">
+        <rect x="30" y="16" width="14" height="68" rx="3" fill="#f7f5f0"/>
+        <path d="M 44 16 L 58 16 A 18 18 0 0 1 58 52 L 44 52 Z" fill="#f7f5f0"/>
+        <rect x="64" y="70" width="10" height="14" rx="2.5" fill="#d1a94a"/>
+        <rect x="76" y="60" width="10" height="24" rx="2.5" fill="#d1a94a"/>
+        <rect x="52" y="66" width="10" height="18" rx="2.5" fill="rgba(209,169,74,0.55)"/>
+      </g>
+      <g class="logo-light-mark" style="display:none">
+        <rect x="30" y="16" width="14" height="68" rx="3" fill="#1a2440"/>
+        <path d="M 44 16 L 58 16 A 18 18 0 0 1 58 52 L 44 52 Z" fill="#1a2440"/>
+        <rect x="64" y="70" width="10" height="14" rx="2.5" fill="#b8933f"/>
+        <rect x="76" y="60" width="10" height="24" rx="2.5" fill="#b8933f"/>
+        <rect x="52" y="66" width="10" height="18" rx="2.5" fill="rgba(184,147,63,0.55)"/>
+      </g>
+    </svg>
+    Portfex
+  </div>
   <div class="nav-right">
     <button class="btn-theme" onclick="toggleTheme()" id="themeBtn">☀ Claro</button>
     <a href="/login" class="btn-ghost">Entrar</a>
