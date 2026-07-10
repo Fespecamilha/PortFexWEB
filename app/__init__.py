@@ -36,9 +36,14 @@ JWT_EXPIRE_H = 24 * 7  # 7 dias
 KIWIFY_SECRET = os.environ.get('KIWIFY_SECRET', '')
 APP_URL        = os.environ.get('APP_URL', 'http://localhost:5000')
 
-PLANO_GRATIS_LIMITE = 2
-PRECO_MENSAL        = 29.90
-PRECO_ANUAL         = 229.00
+PLANO_GRATIS_LIMITE = 2   # Basic: até 2 ativos
+PRECO_BASIC_MENSAL  = 29.90
+PRECO_BASIC_ANUAL   = 229.00
+PRECO_PRO_MENSAL    = 49.90
+PRECO_PRO_ANUAL     = 399.00
+# Compatibilidade
+PRECO_MENSAL        = PRECO_BASIC_MENSAL
+PRECO_ANUAL         = PRECO_BASIC_ANUAL
 
 # ── Database ─────────────────────────────────────────────────────
 def get_db():
@@ -111,12 +116,24 @@ def require_auth(f):
     return dec
 
 def require_pro(f):
+    """Requer plano Pro (FCD, IR, Proventos)."""
     @wraps(f)
     def dec(*a, **k):
         u = current_user()
         if not u: return jsonify({'error': 'Não autenticado'}), 401
-        if not u['assinatura_ativa']:
-            return jsonify({'error': 'Plano Pro necessário', 'upgrade': True}), 403
+        plano = u.get('plano', 'gratis')
+        if plano not in ('pro', 'basic_pro') and not u['assinatura_ativa']:
+            return jsonify({'error': 'Plano Pro necessário', 'upgrade': True, 'plano_atual': plano}), 403
+        request.user = u
+        return f(*a, **k)
+    return dec
+
+def require_basic(f):
+    """Requer pelo menos plano Basic pago."""
+    @wraps(f)
+    def dec(*a, **k):
+        u = current_user()
+        if not u: return jsonify({'error': 'Não autenticado'}), 401
         request.user = u
         return f(*a, **k)
     return dec
@@ -175,7 +192,9 @@ def app_page():
     return render_template('app.html', user=u,
                            limite_gratis=PLANO_GRATIS_LIMITE,
                            preco_mensal=PRECO_MENSAL,
-                           preco_anual=PRECO_ANUAL)
+                           preco_anual=PRECO_ANUAL,
+                           preco_pro_mensal=PRECO_PRO_MENSAL,
+                           preco_pro_anual=PRECO_PRO_ANUAL)
 
 @app.route('/planos')
 def planos_page():

@@ -151,14 +151,50 @@ function save(){
   },600);
 }
 
-function showPage(id,el){
+// Páginas exclusivas do plano Pro
+const PAGINAS_PRO = ['fcd', 'proventos', 'ir'];
+
+function showPage(id, el){
+  // Verifica se página é Pro e usuário não tem Pro
+  const cfg = window.__PORTFEX__ || {};
+  if(PAGINAS_PRO.includes(id) && !cfg.pro){
+    _showUpgradePage(id);
+    document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+    if(el) el.classList.add('active');
+    return;
+  }
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
   document.getElementById('page-'+id).classList.add('active');
-  if(el)el.classList.add('active');
+  if(el) el.classList.add('active');
   document.getElementById('pageTitle').textContent=PAGE_TITLES[id]||id;
   const renders={dashboard:renderDashboard,ativos:()=>{populateSetorFilter();renderTable();},compra:()=>initCompraPage(),metas:renderMetas,aportes:()=>renderAportes(),evolucao:renderEvolucao,analise:renderAnalysis,ir:renderIR,proventos:renderProventos,fcd:renderFCD};
   if(renders[id])renders[id]();
+}
+
+function _showUpgradePage(tentouAcessar){
+  const cfg = window.__PORTFEX__ || {};
+  const nomes = {fcd:'Análise & Valuation', proventos:'Proventos Futuros', ir:'Declaração de IR'};
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  var el = document.getElementById('page-'+tentouAcessar);
+  if(!el) return;
+  el.classList.add('active');
+  document.getElementById('pageTitle').textContent = nomes[tentouAcessar] || tentouAcessar;
+  el.innerHTML = [
+    '<div style="display:flex;align-items:center;justify-content:center;min-height:60vh">',
+    '<div class="form-panel" style="text-align:center;max-width:480px;padding:2.5rem">',
+    '<div style="font-size:3rem;margin-bottom:1rem">⭐</div>',
+    '<div class="form-panel-title" style="font-size:1.3rem;margin-bottom:.75rem">Recurso exclusivo do Plano Pro</div>',
+    '<p style="font-size:.88rem;color:var(--text2);line-height:1.7;margin-bottom:1.5rem">',
+    '<b>' + (nomes[tentouAcessar]||tentouAcessar) + '</b> está disponível apenas no Plano Pro.',
+    ' Faça upgrade para acessar análise de preço justo (FCD + Graham + EV/EBITDA),',
+    ' proventos automáticos e declaração de IR.</p>',
+    '<div style="display:flex;flex-direction:column;gap:.75rem">',
+    '<a href="/planos" class="btn-gold" style="display:block;text-align:center;padding:.8rem;border-radius:9px;border:none;background:linear-gradient(135deg,var(--gold),var(--gold2));color:#080b10;font-weight:700;text-decoration:none;font-size:.95rem">',
+    '⭐ Ver Planos Pro</a>',
+    '<div style="font-size:.78rem;color:var(--text3)">A partir de R$49,90/mês ou R$399/ano</div>',
+    '</div></div></div>'
+  ].join('');
 }
 
 const fmtBRL=v=>v.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
