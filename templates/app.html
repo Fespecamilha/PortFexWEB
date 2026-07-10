@@ -8,10 +8,8 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Portfex">
 <link rel="manifest" href="/static/manifest.json">
-<link rel="apple-touch-icon" href="/static/icons/icon-192.png">
 <title>Portfex</title>
 <link rel="icon" type="image/png" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAB0ElEQVR4nO2Ua0sCURCG/VtmF9NM889EREQUERERRURERBERJV3oQhe60IUuVH/HPqSsCU7O0tic45xdz+76rYEHmdmZ931dxFjsvyzro5AHP9pi/L6TB1siMX7bHoCwBDZ/3cpBVFibv2zmwJbqd0lBf96y+fNGFmypVkoi+p6v+dN6FoJgCoDou54BHtf6IQheAQjaNZo/rGYgCK2YE3QjBrhfyYAEF/B7XqvVoFL+dD9NIfCmyfxuuQ8kJAGv5xQAMd2ThhLgdikNOl6v0rRTKRcbeOngXAlws5gGjvTNCOylHTdAqdjASw9nSoDrhRQQkrAeQAJveQCuKaEEuJpPASIJ4xwF/QLQHiH1HCXA5VwvILoozZ26gPMbQjLX9xCp5ygBLmaTgFSdv9eNRzRXAtR3dPQ9utV7jhLgfCYJBD+SZmTKfxemW0mLUAKcTfcAwY9MM/1NmfYkLaLpz+h0qhsQ56vYIOxM2kGazLFOJrsB4UdhZ9IOIgbAOp7oUo6wDzOTdozmWEfj6hH2YWbSjmcALH50ONbpEnSm977meoiD0YQLF7KZ8b5lc6r9kQREhbU51d5wB4QlsDmvwlAcbInEWK/dwTj40RbjdtUPYVg6Z8lhd0YAAAAASUVORK5CYII=">
-<link rel="apple-touch-icon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAB0ElEQVR4nO2Ua0sCURCG/VtmF9NM889EREQUERERRURERBERJV3oQhe60IUuVH/HPqSsCU7O0tic45xdz+76rYEHmdmZ931dxFjsvyzro5AHP9pi/L6TB1siMX7bHoCwBDZ/3cpBVFibv2zmwJbqd0lBf96y+fNGFmypVkoi+p6v+dN6FoJgCoDou54BHtf6IQheAQjaNZo/rGYgCK2YE3QjBrhfyYAEF/B7XqvVoFL+dD9NIfCmyfxuuQ8kJAGv5xQAMd2ThhLgdikNOl6v0rRTKRcbeOngXAlws5gGjvTNCOylHTdAqdjASw9nSoDrhRQQkrAeQAJveQCuKaEEuJpPASIJ4xwF/QLQHiH1HCXA5VwvILoozZ26gPMbQjLX9xCp5ygBLmaTgFSdv9eNRzRXAtR3dPQ9utV7jhLgfCYJBD+SZmTKfxemW0mLUAKcTfcAwY9MM/1NmfYkLaLpz+h0qhsQ56vYIOxM2kGazLFOJrsB4UdhZ9IOIgbAOp7oUo6wDzOTdozmWEfj6hH2YWbSjmcALH50ONbpEnSm977meoiD0YQLF7KZ8b5lc6r9kQREhbU51d5wB4QlsDmvwlAcbInEWK/dwTj40RbjdtUPYVg6Z8lhd0YAAAAASUVORK5CYII=">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -46,9 +44,10 @@ body{transition:background .25s,color .25s;}
   border-bottom-color:rgba(0,0,0,0.07);
 }
 [data-theme="light"] .logo-mark{
-  color:#b8942e;
-  background:rgba(184,148,46,0.1);
-  border-color:rgba(184,148,46,0.2);
+  background:linear-gradient(135deg,#b8942e,#d4a832) !important;
+  -webkit-background-clip:text !important;
+  -webkit-text-fill-color:transparent !important;
+  background-clip:text !important;
 }
 [data-theme="light"] .nav-section-label{color:#9a9690;}
 [data-theme="light"] .nav-item{color:#5a5650;}
@@ -350,8 +349,8 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
 
 [data-theme="light"] .logo-subtitle span{color:#9a9690;}
 [data-theme="light"] .logo-mark-text{color:#b8942e;}
-[data-theme="light"] .logo-sub{color:#9a9690 !important;}
-[data-theme="light"] .sidebar *{color:inherit;}
+[data-theme="light"] .logo-sub{color:#9a9690 !important;-webkit-text-fill-color:#9a9690 !important;}
+/* sidebar * override removed - caused cascading issues */
 [data-theme="light"] .nav-section-label{color:#b0aca6 !important;}
 [data-theme="light"] .nav-item{color:#3a3630 !important;-webkit-text-fill-color:#3a3630 !important;}
 [data-theme="light"] .save-dot{background:#1a7a45 !important;}
@@ -363,10 +362,33 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
 [data-theme="light"] #themeToggleBtn{color:#5a5650 !important;-webkit-text-fill-color:#5a5650 !important;}
 
 /* ── Logo SVG theme switching ────────────────────── */
-[data-theme="dark"] .logo-dark-mark{display:block;}
-[data-theme="dark"] .logo-light-mark{display:none;}
-[data-theme="light"] .logo-dark-mark{display:none;}
-[data-theme="light"] .logo-light-mark{display:block;}
+[data-theme="dark"] .logo-dark-mark{display:block !important;}
+[data-theme="dark"] .logo-light-mark{display:none !important;}
+[data-theme="light"] .logo-dark-mark{display:none !important;}
+[data-theme="light"] .logo-light-mark{display:block !important;}
+/* Ensure SVG is always visible */
+.app-logo-svg{overflow:visible;}
+
+/* ── Light mode text visibility fixes ──────────────── */
+[data-theme="light"] .sidebar-nav .nav-item,
+[data-theme="light"] .sidebar-nav .nav-section-label,
+[data-theme="light"] .sidebar-footer,
+[data-theme="light"] .save-pill,
+[data-theme="light"] .logo-sub {
+  -webkit-text-fill-color: unset !important;
+}
+[data-theme="light"] .sidebar-logo .logo-mark {
+  -webkit-text-fill-color: transparent !important;
+}
+[data-theme="light"] #userBadge,
+[data-theme="light"] #userBadge * {
+  -webkit-text-fill-color: unset !important;
+  color: #1a1e2e !important;
+}
+[data-theme="light"] .page-title {
+  -webkit-text-fill-color: #1a1e2e !important;
+  color: #1a1e2e !important;
+}
 </style>
 <script>
 window.__PORTFEX__ = {
