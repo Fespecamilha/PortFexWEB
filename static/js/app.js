@@ -1,4 +1,21 @@
 const API = '';
+
+// ── Tema dark/light ───────────────────────────────────────────────
+function _applyTheme(t){
+  document.documentElement.setAttribute('data-theme', t);
+  localStorage.setItem('pf_theme', t);
+  var btn = document.getElementById('themeToggleBtn');
+  if(btn){ btn.textContent = t === 'dark' ? '☀ Claro' : '🌙 Escuro'; }
+}
+function toggleAppTheme(){
+  var cur = document.documentElement.getAttribute('data-theme') || 'dark';
+  _applyTheme(cur === 'dark' ? 'light' : 'dark');
+}
+// Aplica tema salvo imediatamente
+(function(){
+  var t = localStorage.getItem('pf_theme') || 'dark';
+  document.documentElement.setAttribute('data-theme', t);
+})();
 let portfolio=[], metas={}, aportes=[], charts={}, editIndex=-1, editAporteIndex=-1, saveTimer=null;
 let aporteFilterType='', aporteSearchText='';
 const CLASSES=['Ações','FII','Renda Fixa','Cripto','Internacional','Outros'];
@@ -110,6 +127,12 @@ function _renderUserBadge(user){
   if(liveBadge) liveBadge.style.display='flex';
   // Mostra botão Sair no desktop (topbar)
   if(btnSair) btnSair.style.display='flex';
+  var themeBtn = document.getElementById('themeToggleBtn');
+  if(themeBtn){
+    var curTheme = document.documentElement.getAttribute('data-theme') || 'dark';
+    themeBtn.textContent = curTheme === 'dark' ? '☀ Claro' : '🌙 Escuro';
+    themeBtn.style.display = 'flex';
+  }
 }
 
 function _renderUpgradeBanner(total, limite){
