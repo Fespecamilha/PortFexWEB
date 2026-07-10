@@ -417,11 +417,20 @@ TICKER_CVM = {
 # ── Cache CVM (evita re-download do mesmo ZIP) ─────────────────────
 _cvm_cache = {}
 
+def _brapi_url(path, extra_params=""):
+    """Monta URL da brapi.dev com token de ambiente se disponível."""
+    import os
+    token = os.environ.get("BRAPI_TOKEN", "")
+    if extra_params and not extra_params.startswith("?"):
+        extra_params = "?" + extra_params
+    token_part = ("&token=" + token) if token else ""
+    return f"https://brapi.dev/api{path}{extra_params}{token_part}"
+
 def fetch_quote(ticker):
-    url = f"https://brapi.dev/api/quote/{ticker}"
+    url = _brapi_url(f"/quote/{ticker}")
     try:
-        req = urllib.request.Request(url, headers={"User-Agent": "Portfex/2.0"})
-        with urllib.request.urlopen(req, timeout=5) as resp:
+        req = urllib.request.Request(url, headers={"User-Agent": "Portfex/1.0", "Accept": "application/json"})
+        with urllib.request.urlopen(req, timeout=8) as resp:
             return json.loads(resp.read().decode())
     except Exception as e:
         return {"error": str(e)}
@@ -569,54 +578,80 @@ def _baixar_cvm_itr(ano: int) -> dict:
     _cvm_cache[cache_key] = result
     return result
 
+def _safe_raw(val, default=0):
+    """Extrai .raw de dict ou retorna o valor direto."""
+    if isinstance(val, dict):
+        return val.get("raw", default)
+    return val if val is not None else default
+
 def _get_acoes_e_preco(ticker: str) -> dict:
     """
-    Busca dados financeiros via brapi.dev (API REST brasileira, rápida e gratuita).
-    Usa brapi.dev como fonte de dados.
+    Busca dados via brapi.dev.
+    - Cotação básica: sempre disponível (free tier)
+    - Dados financeiros: via módulos (requer token)
     """
     info = {}
 
-    # ── Tenta brapi.dev (primária) ───────────────────────────────
+    # ── Tenta cotação + módulos financeiros ──────────────────────
     try:
-        url = (
-            f"https://brapi.dev/api/quote/{ticker}"
-            f"?modules=summaryProfile,defaultKeyStatistics,"
-            f"financialData,balanceSheetHistory,cashflowStatementHistory"
+        # Primeiro tenta com módulos (funciona com token)
+        url = _brapi_url(
+            f"/quote/{ticker}",
+            "?modules=summaryProfile,defaultKeyStatistics,financialData"
         )
         req = urllib.request.Request(url, headers={
             "User-Agent": "Portfex/1.0",
             "Accept": "application/json"
         })
-        with urllib.request.urlopen(req, timeout=15) as resp:
+        with urllib.request.urlopen(req, timeout=12) as resp:
             data = json.loads(resp.read().decode())
 
         r = (data.get("results") or [{}])[0]
-        if r.get("regularMarketPrice"):
-            fp = r.get("financialData", {})
-            ks = r.get("defaultKeyStatistics", {})
-            sp = r.get("summaryProfile", {})
-
-            info["preco_atual"]  = r.get("regularMarketPrice", 0)
-            info["nome"]         = r.get("longName") or r.get("shortName") or ticker
-            info["setor"]        = sp.get("sector", "")
-            info["acoes"]        = ks.get("sharesOutstanding", {}).get("raw", 0)
-            info["dy"]           = round((r.get("dividendYield", 0) or 0) * 100, 1)
-            info["roe"]          = round((fp.get("returnOnEquity", {}).get("raw", 0) or 0) * 100, 1)
-            info["pl"]           = round(r.get("trailingPE", 0) or ks.get("trailingEps", {}).get("raw", 0) or 0, 1)
-            info["pvp"]          = round(ks.get("priceToBook", {}).get("raw", 0) or 0, 2)
-            info["caixa"]        = fp.get("totalCash", {}).get("raw", 0) or 0
-            info["fco_yf"]       = fp.get("operatingCashflow", {}).get("raw", 0) or 0
-            info["capex_yf"]     = fp.get("capitalExpenditures", {}).get("raw", 0) or 0
-            info["receita_yf"]   = fp.get("totalRevenue", {}).get("raw", 0) or 0
-            info["ebitda_yf"]    = fp.get("ebitda", {}).get("raw", 0) or 0
-            info["lucro_yf"]     = fp.get("netIncomeToCommon", {}).get("raw", 0) or 0
-            info["crescimento"]  = abs(
-                fp.get("earningsGrowth", {}).get("raw", 0) or
-                fp.get("revenueGrowth", {}).get("raw", 0) or 0.08
-            )
+        price = r.get("regularMarketPrice") or r.get("price", 0)
+        if not price:
             return info
-    except Exception:
-        pass
+
+        fp = r.get("financialData") or {}
+        ks = r.get("defaultKeyStatistics") or {}
+        sp = r.get("summaryProfile") or {}
+
+        info["preco_atual"] = float(price)
+        info["nome"]        = r.get("longName") or r.get("shortName") or ticker
+        info["setor"]       = sp.get("sector", "") if isinstance(sp, dict) else ""
+        info["acoes"]       = int(_safe_raw(ks.get("sharesOutstanding"), 0))
+        info["dy"]          = round(float(r.get("dividendYield") or 0) * 100, 1)
+        info["roe"]         = round(float(_safe_raw(fp.get("returnOnEquity"), 0)) * 100, 1)
+        info["pl"]          = round(float(r.get("trailingPE") or _safe_raw(ks.get("trailingEps"), 0)), 1)
+        info["pvp"]         = round(float(_safe_raw(ks.get("priceToBook"), 0)), 2)
+        info["caixa"]       = float(_safe_raw(fp.get("totalCash"), 0))
+        info["fco_yf"]      = float(_safe_raw(fp.get("operatingCashflow"), 0))
+        info["capex_yf"]    = float(_safe_raw(fp.get("capitalExpenditures"), 0))
+        info["receita_yf"]  = float(_safe_raw(fp.get("totalRevenue"), 0))
+        info["ebitda_yf"]   = float(_safe_raw(fp.get("ebitda"), 0))
+        info["lucro_yf"]    = float(_safe_raw(fp.get("netIncomeToCommon"), 0))
+        info["crescimento"] = abs(float(
+            _safe_raw(fp.get("earningsGrowth"), 0) or
+            _safe_raw(fp.get("revenueGrowth"), 0) or 0.08
+        ))
+    except Exception as ex:
+        # Se falhou com módulos, tenta cotação simples
+        try:
+            url2 = _brapi_url(f"/quote/{ticker}")
+            req2 = urllib.request.Request(url2, headers={
+                "User-Agent": "Portfex/1.0",
+                "Accept": "application/json"
+            })
+            with urllib.request.urlopen(req2, timeout=8) as resp2:
+                data2 = json.loads(resp2.read().decode())
+            r2 = (data2.get("results") or [{}])[0]
+            price2 = r2.get("regularMarketPrice") or r2.get("price", 0)
+            if price2:
+                info["preco_atual"] = float(price2)
+                info["nome"]        = r2.get("longName") or r2.get("shortName") or ticker
+                info["dy"]          = round(float(r2.get("dividendYield") or 0) * 100, 1)
+                info["crescimento"] = 0.08
+        except Exception:
+            pass
 
     return info
 
@@ -632,7 +667,7 @@ def buscar_proventos_carteira(portfolio: list) -> list:
         ticker = ativo.get("ticker", "")
         if not ticker: continue
         try:
-            url = f"https://brapi.dev/api/quote/{ticker}?modules=summaryProfile,defaultKeyStatistics,financialData"
+            url = _brapi_url(f"/quote/{ticker}", "?modules=summaryProfile,defaultKeyStatistics,financialData")
             req = urllib.request.Request(url, headers={"User-Agent": "Portfex/1.0", "Accept": "application/json"})
             with urllib.request.urlopen(req, timeout=8) as resp:
                 data = json.loads(resp.read().decode())

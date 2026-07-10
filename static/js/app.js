@@ -40,6 +40,53 @@ async function init(){
   }
 
   renderDashboard();
+
+  // Inicia análise FCD em background automaticamente
+  // Resultados ficam em memória durante toda a sessão
+  setTimeout(function(){ _iniciarAnaliseFCDBackground(); }, 3000);
+}
+
+async function _iniciarAnaliseFCDBackground(){
+  // Só inicia se ainda não analisou
+  if(fcdAnalisado) return;
+  try {
+    const meta = await apiFetch('/api/analisar-carteira').then(r=>r?r.json():null);
+    if(!meta || !meta.ok) return;
+    const carteira = meta.carteira || [];
+    const top30    = meta.top30 || [];
+    fcdTodosAtivos = [...new Set([...carteira, ...top30])];
+    if(!fcdTodosAtivos.length) return;
+
+    for(let i=0; i<fcdTodosAtivos.length; i++){
+      const ticker = fcdTodosAtivos[i];
+      if(fcdResultados[ticker]) continue;
+      const r = await apiFetch('/api/analisar-fcd?ticker='+ticker)
+        .then(res=>res?res.json():{ok:false,erro:'offline',ticker})
+        .catch(e=>({ok:false,erro:e.message,ticker}));
+      if(!r.ticker) r.ticker = ticker;
+      fcdResultados[ticker] = r;
+      // Se a página FCD estiver aberta, atualiza em tempo real
+      if(document.getElementById('fcdResultsArea')){
+        renderFCDResultados();
+        const prog = document.getElementById('fcdProgressTxt');
+        const bar  = document.getElementById('fcdProgressBar');
+        if(prog) prog.textContent = 'Analisando '+ticker+' ('+(i+1)+'/'+fcdTodosAtivos.length+')...';
+        if(bar)  bar.style.width = ((i+1)/fcdTodosAtivos.length*100)+'%';
+      }
+      await new Promise(res=>setTimeout(res,500));
+    }
+    fcdAnalisado = true;
+    // Atualiza UI final se estiver na página
+    if(document.getElementById('fcdResultsArea')){
+      renderFCDResultados();
+      const prog = document.getElementById('fcdProgress');
+      if(prog) prog.style.display='none';
+      const btn = document.getElementById('btnAnalisarTodos');
+      if(btn){ btn.disabled=false; }
+    }
+  } catch(e) {
+    console.log('Background FCD error:', e);
+  }
 }
 
 function _renderUserBadge(user){
@@ -1259,11 +1306,18 @@ async function renderFCD() {
   <div id="fcdResultsArea"></div>`;
 
   // Se já tem resultados em cache, mostra imediatamente
-  if (fcdAnalisado && Object.keys(fcdResultados).length > 0) {
+  if (Object.keys(fcdResultados).length > 0) {
     renderFCDResultados();
-  } else {
-    // Primeira vez: inicia análise automática
-    analisarTodos(false);
+    // Se ainda está carregando em background, mostra progresso
+    if(!fcdAnalisado){
+      var prog = document.getElementById('fcdProgress');
+      if(prog) prog.style.display = 'block';
+    }
+  } else if(!fcdAnalisado) {
+    // Background ainda não iniciou - inicia agora
+    _iniciarAnaliseFCDBackground();
+    var prog = document.getElementById('fcdProgress');
+    if(prog) prog.style.display = 'block';
   }
 }
 
@@ -1279,6 +1333,7 @@ async function analisarUm() {
 }
 
 async function analisarTodos(forceRefresh=false) {
+  if(forceRefresh){ fcdResultados={}; fcdAnalisado=false; }
   const btn = document.getElementById('btnAnalisarTodos');
   const prog = document.getElementById('fcdProgress');
   const progTxt = document.getElementById('fcdProgressTxt');
