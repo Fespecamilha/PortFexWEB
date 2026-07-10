@@ -73,22 +73,40 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;display:flex;align-items:cen
 .gold-text{background:linear-gradient(135deg,var(--gold),var(--gold2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;filter:var(--gold-text-filter);}
 
 /* ── Hero ────────────────────────────────────────────────── */
-.hero{min-height:100svh;display:flex;flex-direction:column;justify-content:center;padding:5rem 1.5rem 3rem;position:relative;overflow:hidden;max-width:1100px;margin:0 auto;}
-.hero::before{content:'';position:absolute;top:-10%;left:-10%;width:60%;height:80%;background:radial-gradient(ellipse,rgba(201,168,76,.07) 0%,transparent 70%);pointer-events:none;}
-.hero-eyebrow{display:inline-flex;align-items:center;gap:.4rem;padding:.28rem .75rem;border-radius:20px;background:rgba(201,168,76,.1);border:1px solid var(--border2);font-size:.68rem;font-weight:600;color:var(--gold);margin-bottom:1.25rem;width:fit-content;}
+.hero-wrap{max-width:1100px;margin:0 auto;padding:0 1.5rem;}
+.hero-inner{display:flex;flex-direction:column;align-items:flex-start;padding:4rem 0 2rem;gap:2.5rem;position:relative;}
+.hero-inner::before{content:'';position:absolute;top:-5%;left:-10%;width:50%;height:70%;background:radial-gradient(ellipse,rgba(201,168,76,.07) 0%,transparent 70%);pointer-events:none;z-index:0;}
+.hero-left{flex:1;position:relative;z-index:1;}
+.hero-right{position:relative;z-index:1;width:100%;}
+@media(min-width:860px){
+  .hero-inner{flex-direction:row;align-items:center;padding:4.5rem 0 2.5rem;}
+  .hero-right{width:auto;flex:0 0 380px;}
+}
+.hero-eyebrow{display:inline-flex;align-items:center;gap:.4rem;padding:.28rem .75rem;border-radius:20px;background:rgba(201,168,76,.1);border:1px solid var(--border2);font-size:.68rem;font-weight:600;color:var(--gold);margin-bottom:1rem;width:fit-content;}
 .hero-eyebrow::before{content:'●';font-size:.45rem;animation:pulse 2s ease-in-out infinite;}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
-.hero h1{font-family:'Outfit',sans-serif;font-weight:800;font-size:clamp(2.1rem,7vw,3.8rem);line-height:1.05;letter-spacing:-.03em;margin-bottom:1rem;}
-.hero-sub{font-size:.95rem;color:var(--text2);line-height:1.7;max-width:480px;margin-bottom:2rem;font-weight:400;}
-.hero-cta{display:flex;gap:.65rem;flex-wrap:wrap;}
-.btn-primary{display:inline-flex;align-items:center;gap:.4rem;padding:.8rem 1.6rem;border-radius:9px;border:none;background:linear-gradient(135deg,var(--gold),var(--gold2));color:#080c14;cursor:pointer;font-family:'Outfit',sans-serif;font-size:.9rem;font-weight:700;text-decoration:none;transition:transform .2s,box-shadow .2s;}
+.hero-wrap h1{font-family:'Outfit',sans-serif;font-weight:800;font-size:clamp(2rem,5.5vw,3.4rem);line-height:1.06;letter-spacing:-.03em;margin-bottom:.9rem;}
+.hero-sub{font-size:.92rem;color:var(--text2);line-height:1.7;max-width:440px;margin-bottom:1.5rem;font-weight:400;}
+.hero-cta{display:flex;gap:.6rem;flex-wrap:wrap;}
+.btn-primary{display:inline-flex;align-items:center;gap:.4rem;padding:.75rem 1.5rem;border-radius:9px;border:none;background:linear-gradient(135deg,var(--gold),var(--gold2));color:#080c14;cursor:pointer;font-family:'Outfit',sans-serif;font-size:.88rem;font-weight:700;text-decoration:none;transition:transform .2s,box-shadow .2s;}
 .btn-primary:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(201,168,76,.25);}
-.btn-secondary{display:inline-flex;align-items:center;padding:.8rem 1.4rem;border-radius:9px;border:1px solid var(--border);background:transparent;color:var(--text2);cursor:pointer;font-family:'Outfit',sans-serif;font-size:.88rem;text-decoration:none;transition:color .15s,border-color .15s;}
-.btn-secondary:hover{color:var(--text);border-color:rgba(255,255,255,.2);}
-.hero-note{font-size:.7rem;color:var(--text3);margin-top:.85rem;}
+.btn-secondary{display:inline-flex;align-items:center;padding:.75rem 1.3rem;border-radius:9px;border:1px solid var(--border);background:transparent;color:var(--text2);cursor:pointer;font-family:'Outfit',sans-serif;font-size:.85rem;text-decoration:none;transition:color .15s,border-color .15s;}
+.btn-secondary:hover{color:var(--text);}
+.hero-note{font-size:.68rem;color:var(--text3);margin-top:.75rem;}
+.hero-stats{display:flex;align-items:center;gap:.85rem;margin-top:1.1rem;padding-top:1rem;border-top:1px solid var(--border);}
+.hero-stat{text-align:center;}
+.hero-stat-val{display:block;font-family:'Outfit',sans-serif;font-size:.9rem;font-weight:700;color:var(--gold);}
+.hero-stat-lbl{display:block;font-size:.6rem;color:var(--text3);margin-top:.1rem;}
+.hero-stat-div{width:1px;height:28px;background:var(--border);}
+.methods-bar{display:flex;align-items:center;justify-content:center;gap:1.5rem;padding:.85rem 0 1.25rem;border-top:1px solid var(--border);flex-wrap:wrap;}
+.method-item{text-align:center;}
+.method-val{display:block;font-family:'Outfit',sans-serif;font-size:.88rem;font-weight:700;color:var(--gold);}
+.method-lbl{display:block;font-size:.62rem;color:var(--text3);margin-top:.1rem;}
+.method-sep{width:1px;height:28px;background:var(--border);}
+@media(max-width:500px){.method-sep{display:none;}.methods-bar{gap:1rem;}}
 
 /* ── Mock Card ───────────────────────────────────────────── */
-.mock-card{margin:2rem 0 0;background:var(--card-bg);border:1px solid var(--border);border-radius:14px;overflow:hidden;max-width:360px;transition:background .3s,border-color .3s;}
+.mock-card{background:var(--card-bg);border:1px solid var(--border);border-radius:14px;overflow:hidden;transition:background .3s,border-color .3s;}
 .mock-header{background:var(--bg3);padding:.65rem 1rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
 .mock-title{font-size:.7rem;font-weight:500;color:var(--text2);}
 .mock-live{display:flex;align-items:center;gap:.3rem;font-size:.63rem;color:var(--green);}
@@ -109,12 +127,7 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;display:flex;align-items:cen
 .mock-stock-name{font-size:.75rem;font-weight:600;color:var(--text);}
 .mock-stock-change{font-size:.7rem;}
 
-/* ── Desktop hero 2-col ─────────────────────────────────── */
-@media(min-width:900px){
-  .hero{flex-direction:row;align-items:center;gap:4rem;padding-top:5rem;}
-  .hero-content{flex:1;}
-  .mock-card{margin:0;flex:0 0 360px;}
-}
+
 
 /* ── Features ────────────────────────────────────────────── */
 .features{padding:5rem 1.5rem;background:var(--feat-bg);border-top:1px solid var(--border);transition:background .3s;}
@@ -213,40 +226,62 @@ footer a{color:var(--text2);text-decoration:none;}
 
 <!-- HERO -->
 <div style="background:var(--bg);transition:background .3s;">
-<section class="hero">
-  <div class="hero-content">
-    <div class="hero-eyebrow">Controle total da sua carteira</div>
-    <h1>Invista com clareza.<br><span class="gold-text">Não no escuro.</span></h1>
-    <p class="hero-sub">Acompanhe sua carteira em tempo real, descubra o preço justo de cada ação, organize o IR e veja seus proventos futuros — tudo no celular.</p>
-    <div class="hero-cta">
-      <a href="/cadastro" class="btn-primary">Começar grátis <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
-      <a href="#planos" class="btn-secondary">Ver planos</a>
-    </div>
-    <p class="hero-note">Grátis até 2 ativos · Sem cartão de crédito</p>
-  </div>
-
-  <div class="mock-card reveal">
-    <div class="mock-header">
-      <span class="mock-title">Portfólio · Jun 2026</span>
-      <span class="mock-live">Ao vivo</span>
-    </div>
-    <div class="mock-body">
-      <div class="mock-total">R$ 48.320,00</div>
-      <div class="mock-gain">+R$ 6.840,00 · +16,5% no período</div>
-      <div class="mock-bars">
-        <div class="mock-bar-row"><span class="mock-bar-label">Ações</span><div class="mock-bar-track"><div class="mock-bar-fill" style="width:70%"></div></div><span class="mock-bar-val">70%</span></div>
-        <div class="mock-bar-row"><span class="mock-bar-label">FIIs</span><div class="mock-bar-track"><div class="mock-bar-fill" style="width:20%;opacity:.7"></div></div><span class="mock-bar-val">20%</span></div>
-        <div class="mock-bar-row"><span class="mock-bar-label">Renda Fixa</span><div class="mock-bar-track"><div class="mock-bar-fill" style="width:10%;opacity:.5"></div></div><span class="mock-bar-val">10%</span></div>
+<div class="hero-wrap">
+  <div class="hero-inner">
+    <!-- LEFT -->
+    <div class="hero-left">
+      <div class="hero-eyebrow">Controle total da sua carteira</div>
+      <h1>Invista com clareza.<br><span class="gold-text">Não no escuro.</span></h1>
+      <p class="hero-sub">Acompanhe sua carteira em tempo real, descubra o preço justo de cada ação, organize o IR e veja seus proventos — tudo no celular.</p>
+      <div class="hero-cta">
+        <a href="/cadastro" class="btn-primary">Começar grátis <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+        <a href="#planos" class="btn-secondary">Ver planos</a>
       </div>
-      <div class="mock-div"></div>
-      <div class="mock-stocks">
-        <div class="mock-stock"><span class="mock-stock-name">PETR4</span><span class="mock-stock-change" style="color:var(--green)">+2,3%</span></div>
-        <div class="mock-stock"><span class="mock-stock-name">BBAS3</span><span class="mock-stock-change" style="color:var(--green)">+0,8%</span></div>
-        <div class="mock-stock"><span class="mock-stock-name">MXRF11</span><span class="mock-stock-change" style="color:var(--red)">-0,4%</span></div>
+      <p class="hero-note">Grátis até 2 ativos · Sem cartão de crédito</p>
+      <div class="hero-stats">
+        <div class="hero-stat"><span class="hero-stat-val">3 métodos</span><span class="hero-stat-lbl">de valuation</span></div>
+        <div class="hero-stat-div"></div>
+        <div class="hero-stat"><span class="hero-stat-val">100%</span><span class="hero-stat-lbl">seus dados</span></div>
+        <div class="hero-stat-div"></div>
+        <div class="hero-stat"><span class="hero-stat-val">PWA</span><span class="hero-stat-lbl">iPhone & Android</span></div>
       </div>
     </div>
+    <!-- RIGHT: Mock App -->
+    <div class="hero-right reveal">
+      <div class="mock-card">
+        <div class="mock-header">
+          <span class="mock-title">Portfólio · Jun 2026</span>
+          <span class="mock-live">Ao vivo</span>
+        </div>
+        <div class="mock-body">
+          <div class="mock-total">R$ 48.320,00</div>
+          <div class="mock-gain">+R$ 6.840,00 · +16,5% no período</div>
+          <div class="mock-bars">
+            <div class="mock-bar-row"><span class="mock-bar-label">Ações</span><div class="mock-bar-track"><div class="mock-bar-fill" style="width:70%"></div></div><span class="mock-bar-val">70%</span></div>
+            <div class="mock-bar-row"><span class="mock-bar-label">FIIs</span><div class="mock-bar-track"><div class="mock-bar-fill" style="width:20%;opacity:.7"></div></div><span class="mock-bar-val">20%</span></div>
+            <div class="mock-bar-row"><span class="mock-bar-label">Renda Fixa</span><div class="mock-bar-track"><div class="mock-bar-fill" style="width:10%;opacity:.5"></div></div><span class="mock-bar-val">10%</span></div>
+          </div>
+          <div class="mock-div"></div>
+          <div class="mock-stocks">
+            <div class="mock-stock"><span class="mock-stock-name">PETR4</span><span class="mock-stock-change" style="color:var(--green)">+2,3%</span></div>
+            <div class="mock-stock"><span class="mock-stock-name">BBAS3</span><span class="mock-stock-change" style="color:var(--green)">+0,8%</span></div>
+            <div class="mock-stock"><span class="mock-stock-name">MXRF11</span><span class="mock-stock-change" style="color:var(--red)">-0,4%</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
-</section>
+  <!-- Methods bar -->
+  <div class="methods-bar">
+    <div class="method-item"><span class="method-val">FCD</span><span class="method-lbl">Fluxo de Caixa Descontado</span></div>
+    <div class="method-sep"></div>
+    <div class="method-item"><span class="method-val">Graham</span><span class="method-lbl">Benjamin Graham</span></div>
+    <div class="method-sep"></div>
+    <div class="method-item"><span class="method-val">EV/EBITDA</span><span class="method-lbl">Múltiplo do setor</span></div>
+    <div class="method-sep"></div>
+    <div class="method-item"><span class="method-val">CVM</span><span class="method-lbl">Dados oficiais</span></div>
+  </div>
+</div>
 </div>
 
 <!-- FEATURES -->
